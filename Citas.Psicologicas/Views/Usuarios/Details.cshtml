@@ -1,0 +1,85 @@
+@model Citas.Psicologicas.DTOs.Usuarios.UsuarioDto
+@{
+    ViewBag.PageTitle = "Detalle de Usuario";
+}
+
+<div class="animate-fade-up">
+    <div class="page-header">
+        <div>
+            <h1 class="page-header-title"><i class="fa fa-user me-2"></i>Detalle de Usuario</h1>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="/Usuarios/Edit/@Model.Id" class="btn btn-primary">
+                <i class="fa fa-pen me-1"></i> Editar
+            </a>
+            <a href="/Usuarios" class="btn btn-light"><i class="fa fa-arrow-left me-1"></i> Regresar</a>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="card text-center">
+                <div class="card-body py-4">
+                    <div class="avatar avatar-lg mx-auto mb-3" style="width:80px;height:80px;font-size:1.75rem">
+                        @Model.Iniciales
+                    </div>
+                    <h3 class="fw-700">@Model.NombreCompleto</h3>
+                    <span class="badge bg-primary mb-2">@Model.RolLabel</span><br>
+                    <span class="badge-pill @(Model.Activo ? "badge-activo" : "badge-inactivo")">
+                        @(Model.Activo ? "Activo" : "Inactivo")
+                    </span>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Información del usuario</h2>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-4">Correo</dt>
+                        <dd class="col-sm-8">@Model.Correo</dd>
+
+                        @if (Model.Rol == Roles.Estudiante)
+                        {
+                            <dt class="col-sm-4">Matrícula / No. Control</dt>
+                            <dd class="col-sm-8">@(Model.Matricula ?? "—")</dd>
+
+                            <dt class="col-sm-4">Carrera</dt>
+                            <dd class="col-sm-8">@(Model.Carrera ?? "—")</dd>
+
+                            <dt class="col-sm-4">Grupo</dt>
+                            <dd class="col-sm-8">@(Model.Grupo ?? "—")</dd>
+
+                            <dt class="col-sm-4">Cuatrimestre</dt>
+                            <dd class="col-sm-8">@(Model.Cuatrimestre?.ToString() ?? "—")</dd>
+
+                            <dt class="col-sm-4">¿Alumno regular?</dt>
+                            <dd class="col-sm-8">@(Model.EsRegular == true ? "Sí" : "No")</dd>
+                        }
+                        else if (Model.Rol == Roles.Tutor)
+                        {
+                            <dt class="col-sm-4">Departamento</dt>
+                            <dd class="col-sm-8">@(Model.Departamento ?? "—")</dd>
+                        }
+                        else if (Model.Rol == Roles.Psicologo)
+                        {
+                            <dt class="col-sm-4">Cédula profesional</dt>
+                            <dd class="col-sm-8">@(Model.CedulaProfesional ?? "—")</dd>
+                        }
+
+                        @if (!string.IsNullOrEmpty(Model.DetalleAdicional))
+                        {
+                            <dt class="col-sm-4">Detalle adicional</dt>
+                            <dd class="col-sm-8">@Model.DetalleAdicional</dd>
+                        }
+
+                        <dt class="col-sm-4">Fecha de Registro</dt>
+                        <dd class="col-sm-8">@(Model.FechaCreacion?.ToString("dd/MM/yyyy HH:mm") ?? "—")</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

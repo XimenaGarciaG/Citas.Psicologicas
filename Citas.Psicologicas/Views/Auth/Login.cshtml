@@ -1,0 +1,126 @@
+@model Citas.Psicologicas.ViewModels.Auth.LoginViewModel
+@{
+    Layout = "_LoginLayout";
+}
+
+<div class="login-page">
+    <!-- Panel izquierdo -->
+    <div class="login-banner">
+        <div class="login-banner-logo">
+            <i class="fa fa-brain"></i>
+        </div>
+        <h1 class="login-banner-title">Sistema de Citas<br>Psicológicas</h1>
+        <p class="login-banner-subtitle">
+            Plataforma de gestión administrativa para el área de Psicología<br>
+            de la Universidad Tecnológica de Tula-Tepeji
+        </p>
+
+        <div class="login-banner-features">
+            <div class="login-feature">
+                <div class="login-feature-icon"><i class="fa fa-calendar-check"></i></div>
+                <div class="login-feature-text">
+                    <strong>Agenda inteligente</strong>
+                    Gestiona y programa citas sin conflictos de horario
+                </div>
+            </div>
+            <div class="login-feature">
+                <div class="login-feature-icon"><i class="fa fa-bell"></i></div>
+                <div class="login-feature-text">
+                    <strong>Notificaciones automáticas</strong>
+                    Recordatorios por correo para reducir el ausentismo
+                </div>
+            </div>
+            <div class="login-feature">
+                <div class="login-feature-icon"><i class="fa fa-chart-bar"></i></div>
+                <div class="login-feature-text">
+                    <strong>Reportes administrativos</strong>
+                    Estadísticas y reportes exportables a Excel
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel derecho (formulario) -->
+    <div class="login-form-panel">
+        <div class="login-form-header">
+            <div class="uttt-badge">
+                <i class="fa fa-university"></i> UTTT
+            </div>
+            <h2>Bienvenido/a</h2>
+            <p>Ingrese sus credenciales institucionales para continuar</p>
+        </div>
+
+        @if (TempData["Success"] != null)
+        {
+            <div class="alert alert-success d-flex align-items-center gap-2 mb-4" role="alert">
+                <i class="fa fa-check-circle"></i>
+                <span>@TempData["Success"]</span>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+        {
+            <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+                <i class="fa fa-exclamation-triangle"></i>
+                <span>@Model.ErrorMessage</span>
+            </div>
+        }
+
+        <form asp-controller="Auth" asp-action="Login" method="post" class="login-form" id="formLogin">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="ReturnUrl">
+
+            <div class="mb-4">
+                <label asp-for="Correo" class="form-label"></label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fa fa-envelope"></i></span>
+                    <input asp-for="Correo" class="form-control" placeholder="correo@uttt.edu.mx"
+                           autocomplete="email" id="txtCorreo">
+                </div>
+                <span asp-validation-for="Correo" class="text-danger small"></span>
+            </div>
+
+            <div class="mb-4">
+                <label asp-for="Contrasena" class="form-label"></label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fa fa-lock"></i></span>
+                    <input asp-for="Contrasena" class="form-control" placeholder="Contraseña"
+                           autocomplete="current-password" id="txtPassword">
+                    <button type="button" class="btn btn-outline-secondary" id="btnTogglePass"
+                            onclick="togglePassword('txtPassword', 'btnTogglePass')">
+                        <i class="fa fa-eye"></i>
+                    </button>
+                </div>
+                <span asp-validation-for="Contrasena" class="text-danger small"></span>
+            </div>
+
+            <button type="submit" class="btn-login" id="btnLogin">
+                <i class="fa fa-sign-in-alt"></i>
+                <span>Iniciar sesión</span>
+            </button>
+        </form>
+
+        <div class="text-center mt-3">
+            <span class="text-muted small">¿No tiene una cuenta?</span>
+            <a href="/Auth/Register" class="fw-600 text-primary text-decoration-none ms-1">Crear una cuenta</a>
+        </div>
+
+        <div class="login-footer-text">
+            Universidad Tecnológica de Tula-Tepeji &copy; @DateTime.Now.Year<br>
+            Sistema de Gestión de Citas Psicológicas
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.getElementById('btnLogin').addEventListener('click', function() {
+            if ($('#formLogin').valid()) {
+                const btn = this;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Iniciando sesión...';
+                btn.style.pointerEvents = 'none';
+            }
+        });
+    </script>
+}

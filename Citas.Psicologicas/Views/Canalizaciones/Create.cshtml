@@ -1,0 +1,70 @@
+@model Citas.Psicologicas.ViewModels.Canalizaciones.CanalizacionCreateViewModel
+@{
+    ViewBag.PageTitle = "Nueva Canalización";
+}
+
+<div class="animate-fade-up">
+    <div class="page-header">
+        <div>
+            <h1 class="page-header-title"><i class="fa fa-share-nodes me-2"></i>Nueva Canalización</h1>
+            <p class="page-header-subtitle">Canalice a un estudiante al área de Psicología</p>
+        </div>
+        <a href="/Canalizaciones" class="btn btn-light"><i class="fa fa-arrow-left me-1"></i> Regresar</a>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Datos de Canalización</h2>
+                </div>
+                <div class="card-body">
+                    <form asp-controller="Canalizaciones" asp-action="Create" method="post" data-loading="Registrando...">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" asp-for="IdTutor">
+
+                        <div class="mb-3">
+                            <label asp-for="IdEstudiante" class="form-label"></label>
+                            <select asp-for="IdEstudiante" class="form-select">
+                                <option value="">-- Seleccione un estudiante --</option>
+                                @foreach (var est in Model.Estudiantes)
+                                {
+                                    <option value="@est.Id">@est.NombreCompleto (@est.Matricula)</option>
+                                }
+                            </select>
+                            <span asp-validation-for="IdEstudiante" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Motivo" class="form-label"></label>
+                            <textarea asp-for="Motivo" class="form-control" rows="4"
+                                      placeholder="Describa el motivo de la canalización..."
+                                      data-max-length="500" data-counter="charMotivo"></textarea>
+                            <div class="d-flex justify-content-between">
+                                <span asp-validation-for="Motivo" class="text-danger small"></span>
+                                <span id="charMotivo" class="text-muted small">0/500</span>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label asp-for="Observaciones" class="form-label"></label>
+                            <textarea asp-for="Observaciones" class="form-control" rows="3"
+                                      placeholder="Observaciones adicionales (opcional)"></textarea>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="/Canalizaciones" class="btn btn-light px-4">Cancelar</a>
+                            <button type="submit" class="btn btn-primary px-4">
+                                <i class="fa fa-share-nodes me-1"></i> Registrar Canalización
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

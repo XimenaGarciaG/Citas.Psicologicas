@@ -1,0 +1,130 @@
+@model Citas.Psicologicas.ViewModels.Usuarios.UsuarioIndexViewModel
+@{
+    ViewBag.PageTitle = "Usuarios";
+}
+
+<div class="animate-fade-up">
+    <div class="page-header">
+        <div>
+            <h1 class="page-header-title"><i class="fa fa-users me-2"></i>Gestión de Usuarios</h1>
+            <p class="page-header-subtitle">Administra los usuarios del sistema por rol y estado</p>
+        </div>
+        <a href="/Usuarios/Create" class="btn btn-primary">
+            <i class="fa fa-plus me-1"></i> Nuevo Usuario
+        </a>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Buscar</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fa fa-search"></i></span>
+                        <input type="text" name="busqueda" class="form-control" value="@Model.FiltroBusqueda" placeholder="Nombre, correo o matrícula">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Rol</label>
+                    <select name="rol" class="form-select">
+                        <option value="">Todos los roles</option>
+                        <option value="@Roles.Administrador" selected="@(Model.FiltroRol == Roles.Administrador)">Administrador</option>
+                        <option value="@Roles.Psicologo" selected="@(Model.FiltroRol == Roles.Psicologo)">Psicólogo/a</option>
+                        <option value="@Roles.Tutor" selected="@(Model.FiltroRol == Roles.Tutor)">Tutor/a</option>
+                        <option value="@Roles.Estudiante" selected="@(Model.FiltroRol == Roles.Estudiante)">Estudiante</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Estado</label>
+                    <select name="estado" class="form-select">
+                        <option value="">Todos</option>
+                        <option value="activo" selected="@(Model.FiltroEstado == "activo")">Activos</option>
+                        <option value="inactivo" selected="@(Model.FiltroEstado == "inactivo")">Inactivos</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary flex-fill">
+                        <i class="fa fa-filter"></i> Filtrar
+                    </button>
+                    <a href="/Usuarios" class="btn btn-light" title="Limpiar">
+                        <i class="fa fa-times"></i>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">@Model.TotalRegistros usuario(s) encontrado(s)</h2>
+        </div>
+        <div class="card-body p-0">
+            @if (!Model.Usuarios.Any())
+            {
+                <div class="empty-state">
+                    <i class="fa fa-users empty-state-icon"></i>
+                    <div class="empty-state-title">No hay usuarios</div>
+                    <p class="empty-state-text">No se encontraron usuarios con los filtros aplicados.</p>
+                    <a href="/Usuarios/Create" class="btn btn-primary">
+                        <i class="fa fa-plus me-1"></i> Crear primer usuario
+                    </a>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table-modern datatable w-100" id="tblUsuarios">
+                        <thead>
+                            <tr>
+                                <th>Usuario</th>
+                                <th>Correo</th>
+                                <th>Rol</th>
+                                <th>Matrícula</th>
+                                <th>Estado</th>
+                                <th>Registro</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var u in Model.Usuarios)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="avatar avatar-sm">@u.Iniciales</div>
+                                            <div>
+                                                <div class="fw-600">@u.NombreCompleto</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-muted">@u.Correo</td>
+                                    <td><span class="badge bg-primary">@u.RolLabel</span></td>
+                                    <td>@(u.Matricula ?? "—")</td>
+                                    <td>
+                                        <span class="badge-pill @(u.Activo ? "badge-activo" : "badge-inactivo")">
+                                            @(u.Activo ? "Activo" : "Inactivo")
+                                        </span>
+                                    </td>
+                                    <td class="text-muted small">@(u.FechaCreacion?.ToString("dd/MM/yyyy") ?? "—")</td>
+                                    <td>
+                                        <div class="d-flex gap-1">
+                                            <a href="/Usuarios/Details/@u.Id" class="btn btn-icon btn-light btn-sm"
+                                               data-bs-toggle="tooltip" title="Ver detalle">
+                                                <i class="fa fa-eye"></i>
+                                            </a>
+                                            <a href="/Usuarios/Edit/@u.Id" class="btn btn-icon btn-light btn-sm"
+                                               data-bs-toggle="tooltip" title="Editar">
+                                                <i class="fa fa-pen"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>

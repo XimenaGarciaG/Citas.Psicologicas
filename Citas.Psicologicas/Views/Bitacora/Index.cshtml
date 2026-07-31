@@ -1,0 +1,90 @@
+@model Citas.Psicologicas.ViewModels.Bitacora.BitacoraIndexViewModel
+@{
+    ViewBag.PageTitle = "Bitácora";
+}
+
+<div class="animate-fade-up">
+    <div class="page-header">
+        <div>
+            <h1 class="page-header-title"><i class="fa fa-book-open me-2"></i>Bitácora de Asistencia</h1>
+            <p class="page-header-subtitle">
+                <span class="text-success fw-600">@Model.TotalAsistencias asistencias</span> &bull;
+                <span class="text-danger fw-600">@Model.TotalInasistencias inasistencias</span>
+            </p>
+        </div>
+        <a href="/Bitacora/Create" class="btn btn-primary">
+            <i class="fa fa-plus me-1"></i> Registrar Asistencia
+        </a>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-5">
+                    <input type="text" name="busqueda" class="form-control" value="@Model.FiltroBusqueda" placeholder="Buscar estudiante o psicólogo">
+                </div>
+                <div class="col-md-3">
+                    <input type="date" name="fecha" class="form-control" value="@Model.FiltroFecha?.ToString("yyyy-MM-dd")">
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+                </div>
+                <div class="col-md-2">
+                    <a href="/Bitacora" class="btn btn-light w-100">Limpiar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body p-0">
+            @if (!Model.Registros.Any())
+            {
+                <div class="empty-state">
+                    <i class="fa fa-book empty-state-icon"></i>
+                    <div class="empty-state-title">Sin registros</div>
+                    <p class="empty-state-text">No hay registros de asistencia con los filtros aplicados.</p>
+                    <a href="/Bitacora/Create" class="btn btn-primary">Registrar asistencia</a>
+                </div>
+            }
+            else
+            {
+                <table class="table-modern datatable w-100" data-order='[[5,"desc"]]'>
+                    <thead>
+                        <tr>
+                            <th>Estudiante</th>
+                            <th>Psicólogo/a</th>
+                            <th>Fecha Cita</th>
+                            <th>Asistencia</th>
+                            <th>Seguimiento</th>
+                            <th>Registro</th>
+                            <th>Observaciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in Model.Registros)
+                        {
+                            <tr>
+                                <td class="fw-600">@r.NombreEstudiante</td>
+                                <td class="text-muted">@r.NombrePsicologo</td>
+                                <td>@(r.FechaCita?.ToString("dd/MM/yyyy") ?? "—")</td>
+                                <td>
+                                    <span class="badge-pill badge-@r.BadgeAsistencia">@r.TextoAsistencia</span>
+                                </td>
+                                <td>
+                                    @if (r.RequiereSeguimiento)
+                                    { <span class="badge bg-warning text-dark">Sí</span> }
+                                    else { <span class="text-muted small">No</span> }
+                                </td>
+                                <td class="text-muted small">@(r.Fecha?.ToString("dd/MM/yyyy HH:mm") ?? "—")</td>
+                                <td class="text-muted small text-truncate-2" style="max-width:200px">
+                                    @(r.ObservacionesAdministrativas ?? "—")
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+</div>

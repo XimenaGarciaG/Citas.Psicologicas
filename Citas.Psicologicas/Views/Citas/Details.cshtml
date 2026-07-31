@@ -1,0 +1,169 @@
+@model Citas.Psicologicas.ViewModels.Citas.CitaDetalleViewModel
+@{
+    ViewBag.PageTitle = "Detalle de Cita";
+    var rol = Context.Session.GetString("Rol") ?? "";
+}
+
+<div class="animate-fade-up">
+    <div class="page-header">
+        <div>
+            <h1 class="page-header-title"><i class="fa fa-calendar-check me-2"></i>Detalle de Cita</h1>
+        </div>
+        <a href="/Citas" class="btn btn-light"><i class="fa fa-arrow-left me-1"></i> Regresar</a>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Información de la Cita</h2>
+                    <span class="badge-pill badge-@Model.Cita.BadgeEstado">@Model.Cita.Estado</span>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-4">Estudiante</dt>
+                        <dd class="col-sm-8 fw-600">@Model.Cita.NombreEstudiante</dd>
+
+                        <dt class="col-sm-4">Psicólogo/a</dt>
+                        <dd class="col-sm-8">@Model.Cita.NombrePsicologo</dd>
+
+                        <dt class="col-sm-4">Fecha</dt>
+                        <dd class="col-sm-8">@Model.Cita.Fecha.ToString("dddd, dd 'de' MMMM 'de' yyyy", new System.Globalization.CultureInfo("es-MX"))</dd>
+
+                        <dt class="col-sm-4">Horario</dt>
+                        <dd class="col-sm-8">@Model.Cita.HoraInicio &ndash; @Model.Cita.HoraFin</dd>
+
+                        <dt class="col-sm-4">Prioridad</dt>
+                        <dd class="col-sm-8">
+                            @if (!string.IsNullOrEmpty(Model.Cita.Prioridad))
+                            { <span class="badge-pill badge-@Model.Cita.Prioridad.ToLower()">@Model.Cita.Prioridad</span> }
+                            else { <span class="text-muted">Sin asignar</span> }
+                        </dd>
+
+                        @if (!string.IsNullOrEmpty(Model.Cita.Motivo))
+                        {
+                            <dt class="col-sm-4">Motivo / Notas</dt>
+                            <dd class="col-sm-8 text-muted">@Model.Cita.Motivo</dd>
+                        }
+
+                        <dt class="col-sm-4">Seguimiento</dt>
+                        <dd class="col-sm-8">
+                            @(Model.Cita.EsSeguimiento ? "Sí" : "No")
+                        </dd>
+                    </dl>
+
+                    <!-- Acciones -->
+                    @if (rol == Roles.Administrador || rol == Roles.Psicologo)
+                    {
+                        <hr>
+                        <div class="d-flex gap-2 flex-wrap">
+                            @if (Model.PuedeConfirmar)
+                            {
+                                <form asp-action="Confirmar" asp-route-id="@Model.Cita.Id" method="post" id="formConfirmar">
+                                    @Html.AntiForgeryToken()
+                                    <button type="button" class="btn btn-success"
+                                            onclick="confirmAction('formConfirmar', 'Confirmar cita', '¿Desea confirmar esta cita?', 'question', 'Confirmar', '#059669')">
+                                        <i class="fa fa-check me-1"></i> Confirmar
+                                    </button>
+                                </form>
+                            }
+                            @if (Model.PuedeCancelar)
+                            {
+                                <form asp-action="Cancelar" asp-route-id="@Model.Cita.Id" method="post" id="formCancelar">
+                                    @Html.AntiForgeryToken()
+                                    <button type="button" class="btn btn-danger"
+                                            onclick="confirmAction('formCancelar', 'Cancelar cita', '¿Está seguro de cancelar esta cita?', 'warning', 'Cancelar cita', '#DC2626')">
+                                        <i class="fa fa-ban me-1"></i> Cancelar
+                                    </button>
+                                </form>
+                            }
+                            @if (Model.PuedeReagendar)
+                            {
+                                <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#modalReagendar">
+                                    <i class="fa fa-calendar-days me-1"></i> Reagendar
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel informativo -->
+        <div class="col-lg-5">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Información adicional</h2>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex flex-column gap-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="avatar" style="background: linear-gradient(135deg, #2563EB, #7C3AED)">
+                                <i class="fa fa-user"></i>
+                            </div>
+                            <div>
+                                <div class="fw-600">@Model.Cita.NombreEstudiante</div>
+                                <div class="text-muted small">Estudiante</div>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="avatar" style="background: linear-gradient(135deg, #059669, #10B981)">
+                                <i class="fa fa-user-doctor"></i>
+                            </div>
+                            <div>
+                                <div class="fw-600">@Model.Cita.NombrePsicologo</div>
+                                <div class="text-muted small">Psicólogo/a</div>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="text-muted small">
+                            <i class="fa fa-clock me-1"></i> Creada el @(Model.Cita.FechaCreacion?.ToString("dd/MM/yyyy HH:mm") ?? "—")
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Reagendar -->
+<div class="modal fade" id="modalReagendar" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fa fa-calendar-days me-2"></i>Reagendar Cita</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-action="Reagendar" asp-route-id="@Model.Cita.Id" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Nueva Fecha</label>
+                            <input asp-for="NuevaFecha" type="date" class="form-control"
+                                   min="@DateTime.Today.AddDays(1).ToString("yyyy-MM-dd")">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Nueva Hora de Inicio</label>
+                            <input asp-for="NuevaHoraInicio" type="time" class="form-control">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Nueva Hora de Fin</label>
+                            <input asp-for="NuevaHoraFin" type="time" class="form-control">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Motivo de reagenda (opcional)</label>
+                            <textarea asp-for="MotivoReagenda" class="form-control" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fa fa-calendar-days me-1"></i> Confirmar Reagenda
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

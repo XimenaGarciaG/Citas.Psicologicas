@@ -1,0 +1,187 @@
+@model Citas.Psicologicas.ViewModels.Auth.RegisterViewModel
+@{
+    Layout = "_LoginLayout";
+}
+
+<div class="login-page">
+    <!-- Panel izquierdo con información institucional -->
+    <div class="login-banner">
+        <div class="login-banner-logo">
+            <i class="fa fa-user-plus"></i>
+        </div>
+        <h1 class="login-banner-title">Crear Cuenta<br>Institucional</h1>
+        <p class="login-banner-subtitle">
+            Regístrese para acceder al Sistema de Citas Psicológicas de la Universidad Tecnológica de Tula-Tepeji
+        </p>
+
+        <div class="login-banner-features">
+            <div class="login-feature">
+                <div class="login-feature-icon"><i class="fa fa-graduation-cap"></i></div>
+                <div class="login-feature-text">
+                    <strong>Alumnos y Tutores</strong>
+                    Solicitud directa de atención psicológica y canalizaciones institucionales.
+                </div>
+            </div>
+            <div class="login-feature">
+                <div class="login-feature-icon"><i class="fa fa-shield-halved"></i></div>
+                <div class="login-feature-text">
+                    <strong>Acceso Seguro</strong>
+                    Credenciales protegidas y gestión restringida por roles institucionales.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel derecho con el formulario de registro -->
+    <div class="login-form-panel" style="max-width: 540px; overflow-y: auto; max-height: 100vh; padding: 40px 32px;">
+        <div class="login-form-header">
+            <div class="uttt-badge">
+                <i class="fa fa-university"></i> UTTT
+            </div>
+            <h2>Crear nueva cuenta</h2>
+            <p>Complete sus datos para registrarse en la plataforma</p>
+        </div>
+
+        @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+        {
+            <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+                <i class="fa fa-exclamation-triangle"></i>
+                <span>@Model.ErrorMessage</span>
+            </div>
+        }
+
+        <form asp-controller="Auth" asp-action="Register" method="post" class="login-form" id="formRegister">
+            @Html.AntiForgeryToken()
+
+            <!-- Nombre Completo -->
+            <div class="mb-3">
+                <label asp-for="NombreCompleto" class="form-label"></label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fa fa-user"></i></span>
+                    <input asp-for="NombreCompleto" class="form-control" placeholder="Ej. María López Pérez">
+                </div>
+                <span asp-validation-for="NombreCompleto" class="text-danger small"></span>
+            </div>
+
+            <!-- Correo -->
+            <div class="mb-3">
+                <label asp-for="Correo" class="form-label"></label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fa fa-envelope"></i></span>
+                    <input asp-for="Correo" class="form-control" placeholder="usuario@uttt.edu.mx">
+                </div>
+                <span asp-validation-for="Correo" class="text-danger small"></span>
+            </div>
+
+            <!-- Contraseña -->
+            <div class="row g-2 mb-3">
+                <div class="col-md-6">
+                    <label asp-for="Password" class="form-label"></label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fa fa-lock"></i></span>
+                        <input asp-for="Password" class="form-control" placeholder="Contraseña" id="txtRegPassword">
+                    </div>
+                    <span asp-validation-for="Password" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="ConfirmPassword" class="form-label"></label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fa fa-lock-check"></i></span>
+                        <input asp-for="ConfirmPassword" class="form-control" placeholder="Confirmar" id="txtConfirmPassword">
+                    </div>
+                    <span asp-validation-for="ConfirmPassword" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <!-- Tipo de cuenta / Rol -->
+            <div class="mb-3">
+                <label asp-for="Rol" class="form-label"></label>
+                <select asp-for="Rol" class="form-select" id="selectRegRol" onchange="actualizarCamposPorRol()">
+                    <option value="@Roles.Estudiante">Estudiante</option>
+                    <option value="@Roles.Tutor">Tutor</option>
+                </select>
+                <span asp-validation-for="Rol" class="text-danger small"></span>
+            </div>
+
+            <!-- Seccion Estudiante -->
+            <div id="seccionEstudiante" class="p-3 bg-light rounded-3 mb-3 border">
+                <div class="fw-600 text-primary mb-2 small"><i class="fa fa-graduation-cap me-1"></i> Datos de Estudiante</div>
+                <div class="row g-2">
+                    <div class="col-md-6 mb-2">
+                        <label asp-for="Matricula" class="form-label small"></label>
+                        <input asp-for="Matricula" class="form-control form-control-sm" placeholder="Ej. UTTT2025001">
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label asp-for="Carrera" class="form-label small"></label>
+                        <input asp-for="Carrera" class="form-control form-control-sm" placeholder="Ej. Ing. Sistemas">
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label asp-for="Cuatrimestre" class="form-label small"></label>
+                        <input asp-for="Cuatrimestre" type="number" min="1" max="11" class="form-control form-control-sm" placeholder="Ej. 5">
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label asp-for="Grupo" class="form-label small"></label>
+                        <input asp-for="Grupo" class="form-control form-control-sm" placeholder="Ej. 9IDSG-G2">
+                    </div>
+                    <div class="col-md-4 mb-2 d-flex align-items-end">
+                        <div class="form-check">
+                            <input asp-for="EsRegular" class="form-check-input" type="checkbox" id="chkRegular">
+                            <label class="form-check-label small" for="chkRegular">Es Regular</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seccion Tutor -->
+            <div id="seccionTutor" class="p-3 bg-light rounded-3 mb-3 border" style="display:none;">
+                <div class="fw-600 text-primary mb-2 small"><i class="fa fa-chalkboard-user me-1"></i> Datos de Tutor</div>
+                <div class="mb-2">
+                    <label asp-for="Departamento" class="form-label small"></label>
+                    <input asp-for="Departamento" class="form-control form-control-sm" placeholder="Ej. División de Tecnologías de la Información">
+                </div>
+            </div>
+
+            <!-- Seccion Psicologo -->
+            <div id="seccionPsicologo" class="p-3 bg-light rounded-3 mb-3 border" style="display:none;">
+                <div class="fw-600 text-primary mb-2 small"><i class="fa fa-user-doctor me-1"></i> Datos del Profesional</div>
+                <div class="mb-2">
+                    <label asp-for="CedulaProfesional" class="form-label small"></label>
+                    <input asp-for="CedulaProfesional" class="form-control form-control-sm" placeholder="Ej. 12345678">
+                </div>
+            </div>
+
+            <button type="submit" class="btn-login mt-2" id="btnRegisterSubmit">
+                <i class="fa fa-user-plus me-1"></i>
+                <span>Crear cuenta</span>
+            </button>
+        </form>
+
+        <div class="text-center mt-3">
+            <span class="text-muted small">¿Ya tiene una cuenta?</span>
+            <a href="/Auth/Login" class="fw-600 text-primary text-decoration-none ms-1">Iniciar sesión</a>
+        </div>
+
+        <div class="login-footer-text mt-4">
+            Universidad Tecnológica de Tula-Tepeji &copy; @DateTime.Now.Year
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        function actualizarCamposPorRol() {
+            const rol = document.getElementById('selectRegRol').value;
+            document.getElementById('seccionEstudiante').style.display = (rol === 'ESTUDIANTE') ? 'block' : 'none';
+            document.getElementById('seccionTutor').style.display      = (rol === 'TUTOR') ? 'block' : 'none';
+            document.getElementById('seccionPsicologo').style.display  = (rol === 'PSICOLOGO') ? 'block' : 'none';
+        }
+
+        document.getElementById('btnRegisterSubmit').addEventListener('click', function() {
+            if ($('#formRegister').valid()) {
+                this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Registrando cuenta...';
+                this.style.pointerEvents = 'none';
+            }
+        });
+    </script>
+}

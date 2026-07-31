@@ -1,0 +1,115 @@
+@model Citas.Psicologicas.ViewModels.Solicitudes.SolicitudIndexViewModel
+@{
+    ViewBag.PageTitle = "Solicitudes";
+    var rol = Context.Session.GetString("Rol") ?? "";
+}
+
+<div class="animate-fade-up">
+    <div class="page-header">
+        <div>
+            <h1 class="page-header-title"><i class="fa fa-file-medical me-2"></i>Solicitudes de Atención</h1>
+            <p class="page-header-subtitle">@Model.Total solicitud(es) &bull; @Model.Pendientes pendiente(s)</p>
+        </div>
+        @if (rol == Roles.Estudiante)
+        {
+            <a href="/Solicitudes/Create" class="btn btn-primary">
+                <i class="fa fa-plus me-1"></i> Nueva Solicitud
+            </a>
+        }
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <input type="text" name="busqueda" class="form-control" value="@Model.FiltroBusqueda" placeholder="🔍 Buscar por estudiante o comentario">
+                </div>
+                <div class="col-md-3">
+                    <select name="estado" class="form-select">
+                        <option value="">Todos los estados</option>
+                        <option value="@EstadosSolicitud.Pendiente" selected="@(Model.FiltroEstado == EstadosSolicitud.Pendiente)">Pendiente</option>
+                        <option value="@EstadosSolicitud.Agendada" selected="@(Model.FiltroEstado == EstadosSolicitud.Agendada)">Agendada</option>
+                        <option value="@EstadosSolicitud.Atendida" selected="@(Model.FiltroEstado == EstadosSolicitud.Atendida)">Atendida</option>
+                        <option value="@EstadosSolicitud.Cancelada" selected="@(Model.FiltroEstado == EstadosSolicitud.Cancelada)">Cancelada</option>
+                    </select>
+                </div>
+                @if (rol != Roles.Estudiante)
+                {
+                    <div class="col-md-3">
+                        <select name="prioridad" class="form-select">
+                            <option value="">Todas las prioridades</option>
+                            <option value="@Prioridades.Alta" selected="@(Model.FiltroPrioridad == Prioridades.Alta)">Alta</option>
+                            <option value="@Prioridades.Media" selected="@(Model.FiltroPrioridad == Prioridades.Media)">Media</option>
+                            <option value="@Prioridades.Baja" selected="@(Model.FiltroPrioridad == Prioridades.Baja)">Baja</option>
+                        </select>
+                    </div>
+                }
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100"><i class="fa fa-filter"></i> Filtrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body p-0">
+            @if (!Model.Solicitudes.Any())
+            {
+                <div class="empty-state">
+                    <i class="fa fa-file-circle-xmark empty-state-icon"></i>
+                    <div class="empty-state-title">Sin solicitudes</div>
+                    <p class="empty-state-text">No hay solicitudes con los filtros seleccionados.</p>
+                    @if (rol == Roles.Estudiante)
+                    {
+                        <a href="/Solicitudes/Create" class="btn btn-primary">Nueva solicitud</a>
+                    }
+                </div>
+            }
+            else
+            {
+                <table class="table-modern datatable w-100">
+                    <thead>
+                        <tr>
+                            <th>Estudiante</th>
+                            <th>Comentario</th>
+                            <th>Fecha</th>
+                            <th>Estado</th>
+                            <th>Prioridad</th>
+                            @if (rol != Roles.Estudiante) { <th>Psicólogo</th> }
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in Model.Solicitudes)
+                        {
+                            <tr>
+                                <td class="fw-600">@s.NombreEstudiante</td>
+                                <td class="text-muted text-truncate-2" style="max-width:200px">@(s.Comentario ?? "—")</td>
+                                <td class="text-muted small">@(s.FechaSolicitud?.ToString("dd/MM/yyyy") ?? "—")</td>
+                                <td><span class="badge-pill badge-@s.BadgeEstado">@s.Estado</span></td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(s.Prioridad))
+                                    {
+                                        <span class="badge-pill badge-@s.Prioridad.ToLower()">@s.Prioridad</span>
+                                    }
+                                    else { <span class="text-muted small">Sin asignar</span> }
+                                </td>
+                                @if (rol != Roles.Estudiante)
+                                {
+                                    <td class="text-muted small">@(s.NombrePsicologo ?? "—")</td>
+                                }
+                                <td>
+                                    <a href="/Solicitudes/Details/@s.Id" class="btn btn-icon btn-light btn-sm"
+                                       data-bs-toggle="tooltip" title="Ver detalle">
+                                        <i class="fa fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+</div>

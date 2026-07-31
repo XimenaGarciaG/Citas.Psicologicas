@@ -1,0 +1,197 @@
+@model Citas.Psicologicas.ViewModels.Dashboard.DashboardViewModel
+@{
+    ViewBag.PageTitle = "Dashboard";
+}
+
+<div class="animate-fade-up">
+    <!-- Saludo -->
+    <div class="page-header">
+        <div>
+            <h1 class="page-header-title">
+                ¡Bienvenido/a, @Model.NombreUsuario.Split(' ')[0]! 👋
+            </h1>
+            <p class="page-header-subtitle">
+                @DateTime.Now.ToString("dddd, dd 'de' MMMM 'de' yyyy", new System.Globalization.CultureInfo("es-MX"))
+                &bull; @Model.Rol
+            </p>
+        </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="kpi-card kpi-card-blue animate-fade-up delay-1">
+                <div class="kpi-value">@Model.Estadisticas.TotalCitas</div>
+                <div class="kpi-label">Total Citas</div>
+                <i class="fa fa-calendar kpi-icon"></i>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="kpi-card kpi-card-green animate-fade-up delay-2">
+                <div class="kpi-value">@Model.Estadisticas.TotalAsistencias</div>
+                <div class="kpi-label">Asistencias</div>
+                <i class="fa fa-user-check kpi-icon"></i>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="kpi-card kpi-card-red animate-fade-up delay-3">
+                <div class="kpi-value">@Model.Estadisticas.TotalInasistencias</div>
+                <div class="kpi-label">Inasistencias</div>
+                <i class="fa fa-user-xmark kpi-icon"></i>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="kpi-card kpi-card-purple animate-fade-up delay-4">
+                <div class="kpi-value">@Model.Estadisticas.PorcentajeAsistencia.ToString("F1")%</div>
+                <div class="kpi-label">% Asistencia</div>
+                <i class="fa fa-percent kpi-icon"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="kpi-card kpi-card-amber animate-fade-up delay-1">
+                <div class="kpi-value">@Model.Estadisticas.CitasReservadas</div>
+                <div class="kpi-label">Reservadas</div>
+                <i class="fa fa-clock kpi-icon"></i>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="kpi-card kpi-card-teal animate-fade-up delay-2">
+                <div class="kpi-value">@Model.Estadisticas.CitasConcluidas</div>
+                <div class="kpi-label">Concluidas</div>
+                <i class="fa fa-check-circle kpi-icon"></i>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="kpi-card kpi-card-red animate-fade-up delay-3">
+                <div class="kpi-value">@Model.Estadisticas.CitasCanceladas</div>
+                <div class="kpi-label">Canceladas</div>
+                <i class="fa fa-ban kpi-icon"></i>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="kpi-card kpi-card-blue animate-fade-up delay-4">
+                <div class="kpi-value">@Model.Estadisticas.SolicitudesPendientes</div>
+                <div class="kpi-label">Solicitudes pendientes</div>
+                <i class="fa fa-file-circle-plus kpi-icon"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficas -->
+    <div class="row g-3 mb-4">
+        <div class="col-lg-8">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h2 class="card-title"><i class="fa fa-chart-line me-2 text-primary"></i>Citas por Mes</h2>
+                </div>
+                <div class="card-body">
+                    <canvas id="chartCitasMes" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h2 class="card-title"><i class="fa fa-chart-donut me-2 text-secondary"></i>Solicitudes</h2>
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center">
+                    <canvas id="chartSolicitudes" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Próximas citas -->
+    @if (Model.Estadisticas.ProximasCitas.Any())
+    {
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fa fa-calendar-day me-2 text-primary"></i>Próximas Citas</h2>
+                <a href="/Citas" class="btn btn-outline-primary btn-sm">Ver todas</a>
+            </div>
+            <div class="card-body p-0">
+                <table class="table-modern w-100">
+                    <thead>
+                        <tr>
+                            <th>Estudiante</th>
+                            <th>Fecha</th>
+                            <th>Hora</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var cita in Model.Estadisticas.ProximasCitas.Take(8))
+                        {
+                            <tr>
+                                <td>@cita.NombreEstudiante</td>
+                                <td>@cita.Fecha.ToString("dd/MM/yyyy")</td>
+                                <td>@cita.HoraInicio</td>
+                                <td>
+                                    <span class="badge-pill badge-@cita.Estado?.ToLower()">@cita.Estado</span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+    (function() {
+        // Gráfica de citas por mes
+        const ctxMes = document.getElementById('chartCitasMes');
+        if (ctxMes) {
+            const meses = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Estadisticas.CitasPorMes.Select(c => c.Mes)));
+            const totales = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Estadisticas.CitasPorMes.Select(c => c.Total)));
+
+            new Chart(ctxMes, {
+                type: 'line',
+                data: {
+                    labels: meses,
+                    datasets: [{
+                        label: 'Citas',
+                        data: totales,
+                        borderColor: '#2563EB',
+                        backgroundColor: 'rgba(37,99,235,0.08)',
+                        borderWidth: 2.5,
+                        pointBackgroundColor: '#2563EB',
+                        pointRadius: 5,
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { display: false } },
+                           scales: { y: { beginAtZero: true, grid: { color: '#F1F5F9' } },
+                                     x: { grid: { display: false } } } }
+            });
+        }
+
+        // Gráfica de dona
+        const ctxSol = document.getElementById('chartSolicitudes');
+        if (ctxSol) {
+            const estados = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Estadisticas.SolicitudesPorEstado.Select(s => s.Estado)));
+            const totSol = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Estadisticas.SolicitudesPorEstado.Select(s => s.Total)));
+
+            new Chart(ctxSol, {
+                type: 'doughnut',
+                data: {
+                    labels: estados,
+                    datasets: [{
+                        data: totSol,
+                        backgroundColor: ['#2563EB','#059669','#DC2626','#D97706'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } }, cutout: '65%' }
+            });
+        }
+    })();
+    </script>
+}

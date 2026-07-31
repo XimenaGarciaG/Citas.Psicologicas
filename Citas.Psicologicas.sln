@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.37502.11 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Citas.Psicologicas", "Citas.Psicologicas\Citas.Psicologicas.csproj", "{3468E619-D8AE-4860-A2A2-A24B9AA0A853}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3468E619-D8AE-4860-A2A2-A24B9AA0A853}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3468E619-D8AE-4860-A2A2-A24B9AA0A853}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3468E619-D8AE-4860-A2A2-A24B9AA0A853}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3468E619-D8AE-4860-A2A2-A24B9AA0A853}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {DDA09DFE-C58C-47B0-B325-0487F84E5D36}
+	EndGlobalSection
+EndGlobal

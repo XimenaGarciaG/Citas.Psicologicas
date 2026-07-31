@@ -1,0 +1,141 @@
+@model Citas.Psicologicas.ViewModels.Reportes.ReporteFiltroViewModel
+@{
+    ViewBag.PageTitle = "Reportes";
+}
+
+<div class="animate-fade-up">
+    <div class="page-header">
+        <h1 class="page-header-title"><i class="fa fa-file-chart-column me-2"></i>Reportes Administrativos</h1>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="card-title">Filtros del Reporte</h2>
+        </div>
+        <div class="card-body">
+            <form asp-controller="Reportes" asp-action="Index" method="post" class="row g-3">
+                @Html.AntiForgeryToken()
+
+                <div class="col-md-3">
+                    <label asp-for="TipoReporte" class="form-label"></label>
+                    <select asp-for="TipoReporte" class="form-select">
+                        <option value="Asistencia">Reporte de Asistencia</option>
+                        <option value="Inasistencia">Reporte de Inasistencias</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label asp-for="FechaInicio" class="form-label"></label>
+                    <input asp-for="FechaInicio" type="date" class="form-control">
+                    <span asp-validation-for="FechaInicio" class="text-danger small"></span>
+                </div>
+                <div class="col-md-3">
+                    <label asp-for="FechaFin" class="form-label"></label>
+                    <input asp-for="FechaFin" type="date" class="form-control">
+                    <span asp-validation-for="FechaFin" class="text-danger small"></span>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fa fa-search me-1"></i> Generar Reporte
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    @if (Model.TieneResultados)
+    {
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    Resultados: @(Model.TipoReporte == "Asistencia" ? "Reporte de Asistencia" : "Reporte de Inasistencias")
+                </h2>
+                <form asp-action="ExportarExcel" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="TipoReporte" value="@Model.TipoReporte">
+                    <input type="hidden" name="FechaInicio" value="@Model.FechaInicio.ToString("yyyy-MM-dd")">
+                    <input type="hidden" name="FechaFin" value="@Model.FechaFin.ToString("yyyy-MM-dd")">
+                    <button type="submit" class="btn btn-success btn-sm">
+                        <i class="fa fa-file-excel me-1"></i> Exportar Excel
+                    </button>
+                </form>
+            </div>
+            <div class="card-body p-0">
+                @if (Model.TipoReporte == "Asistencia" && Model.DatosAsistencia?.Any() == true)
+                {
+                    <table class="table-modern datatable w-100">
+                        <thead>
+                            <tr>
+                                <th>Estudiante</th>
+                                <th>No. Control</th>
+                                <th>Carrera</th>
+                                <th>Psicólogo/a</th>
+                                <th>Fecha</th>
+                                <th>Hora</th>
+                                <th>Asistió</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.DatosAsistencia)
+                            {
+                                <tr>
+                                    <td class="fw-600">@item.NombreEstudiante</td>
+                                    <td>@item.NumeroControl</td>
+                                    <td>@item.Carrera</td>
+                                    <td>@item.NombrePsicologo</td>
+                                    <td>@(item.Fecha?.ToString("dd/MM/yyyy") ?? "—")</td>
+                                    <td>@item.HoraInicio</td>
+                                    <td>
+                                        @if (item.Asistio)
+                                        { <span class="badge-pill badge-confirmada">Sí</span> }
+                                        else
+                                        { <span class="badge-pill badge-cancelada">No</span> }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else if (Model.TipoReporte == "Inasistencia" && Model.DatosInasistencia?.Any() == true)
+                {
+                    <table class="table-modern datatable w-100">
+                        <thead>
+                            <tr>
+                                <th>Estudiante</th>
+                                <th>No. Control</th>
+                                <th>Carrera</th>
+                                <th>Fecha Cita</th>
+                                <th>Hora</th>
+                                <th>Motivo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.DatosInasistencia)
+                            {
+                                <tr>
+                                    <td class="fw-600">@item.NombreEstudiante</td>
+                                    <td>@item.NumeroControl</td>
+                                    <td>@item.Carrera</td>
+                                    <td>@item.FechaCita.ToString("dd/MM/yyyy")</td>
+                                    <td>@item.HoraInicio</td>
+                                    <td class="text-muted">@item.Motivo</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    }
+    else if (ViewBag.BusquedaRealizada == true)
+    {
+        <div class="empty-state">
+            <i class="fa fa-file-circle-xmark empty-state-icon"></i>
+            <div class="empty-state-title">Sin resultados</div>
+            <p class="empty-state-text">No se encontraron datos para el periodo seleccionado.</p>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

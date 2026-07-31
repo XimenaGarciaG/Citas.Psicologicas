@@ -1,0 +1,147 @@
+@model Citas.Psicologicas.ViewModels.Usuarios.UsuarioCreateViewModel
+@{
+    ViewBag.PageTitle = "Nuevo Usuario";
+}
+
+<div class="animate-fade-up">
+    <div class="page-header">
+        <div>
+            <h1 class="page-header-title"><i class="fa fa-user-plus me-2"></i>Nuevo Usuario</h1>
+            <p class="page-header-subtitle">Complete los datos para registrar un nuevo usuario en el sistema</p>
+        </div>
+        <a href="/Usuarios" class="btn btn-light"><i class="fa fa-arrow-left me-1"></i> Regresar</a>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Datos del Usuario</h2>
+                </div>
+                <div class="card-body">
+                    <form asp-controller="Usuarios" asp-action="Create" method="post" data-loading="Guardando usuario...">
+                        @Html.AntiForgeryToken()
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label asp-for="NombreCompleto" class="form-label"></label>
+                                <input asp-for="NombreCompleto" class="form-control" placeholder="Nombre completo">
+                                <span asp-validation-for="NombreCompleto" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label asp-for="Correo" class="form-label"></label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fa fa-envelope"></i></span>
+                                    <input asp-for="Correo" class="form-control" placeholder="correo@uttt.edu.mx">
+                                </div>
+                                <span asp-validation-for="Correo" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label asp-for="Password" class="form-label"></label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fa fa-lock"></i></span>
+                                    <input asp-for="Password" class="form-control" id="inputPass">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('inputPass', 'btnTogglePass')" id="btnTogglePass">
+                                        <i class="fa fa-eye"></i>
+                                    </button>
+                                </div>
+                                <span asp-validation-for="Password" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label asp-for="Rol" class="form-label"></label>
+                                <select asp-for="Rol" class="form-select" id="selectRol" onchange="toggleCamposRol()">
+                                    <option value="">-- Seleccione un rol --</option>
+                                    <option value="@Roles.Administrador">Administrador</option>
+                                    <option value="@Roles.Psicologo">Psicólogo/a</option>
+                                    <option value="@Roles.Tutor">Tutor/a</option>
+                                    <option value="@Roles.Estudiante">Estudiante</option>
+                                </select>
+                                <span asp-validation-for="Rol" class="text-danger small"></span>
+                            </div>
+
+                            <!-- Campos exclusivos de Estudiante -->
+                            <div id="camposEstudiante" style="display:none;" class="col-12">
+                                <div class="p-3 bg-light rounded-3 border">
+                                    <div class="fw-600 text-primary mb-2 small"><i class="fa fa-graduation-cap me-1"></i> Datos de Estudiante</div>
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <label asp-for="Matricula" class="form-label"></label>
+                                            <input asp-for="Matricula" class="form-control" placeholder="Ej. UTTT2025001">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label asp-for="Carrera" class="form-label"></label>
+                                            <input asp-for="Carrera" class="form-control" placeholder="Ej. Ing. Sistemas">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label asp-for="Grupo" class="form-label"></label>
+                                            <input asp-for="Grupo" class="form-control" placeholder="Ej. 9IDSG-G2">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label asp-for="Cuatrimestre" class="form-label"></label>
+                                            <input asp-for="Cuatrimestre" type="number" min="1" max="11" class="form-control" placeholder="Ej. 5">
+                                        </div>
+                                        <div class="col-md-4 d-flex align-items-end">
+                                            <div class="form-check">
+                                                <input asp-for="EsRegular" class="form-check-input" type="checkbox" id="chkRegular">
+                                                <label class="form-check-label" for="chkRegular">¿Es alumno regular?</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Campos exclusivos de Tutor -->
+                            <div id="camposTutor" style="display:none;" class="col-12">
+                                <div class="p-3 bg-light rounded-3 border">
+                                    <div class="fw-600 text-primary mb-2 small"><i class="fa fa-chalkboard-user me-1"></i> Datos de Tutor</div>
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label asp-for="Departamento" class="form-label"></label>
+                                            <input asp-for="Departamento" class="form-control" placeholder="Ej. División de TI">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Campos exclusivos de Psicólogo -->
+                            <div id="camposPsicologo" style="display:none;" class="col-12">
+                                <div class="p-3 bg-light rounded-3 border">
+                                    <div class="fw-600 text-primary mb-2 small"><i class="fa fa-user-doctor me-1"></i> Datos del Profesional</div>
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label asp-for="CedulaProfesional" class="form-label"></label>
+                                            <input asp-for="CedulaProfesional" class="form-control" placeholder="Ej. 12345678">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="/Usuarios" class="btn btn-light px-4">Cancelar</a>
+                            <button type="submit" class="btn btn-primary px-4">
+                                <i class="fa fa-save me-1"></i> Guardar Usuario
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+    function toggleCamposRol() {
+        const rol = document.getElementById('selectRol').value;
+        document.getElementById('camposEstudiante').style.display = rol === '@Roles.Estudiante' ? 'block' : 'none';
+        document.getElementById('camposTutor').style.display      = rol === '@Roles.Tutor' ? 'block' : 'none';
+        document.getElementById('camposPsicologo').style.display  = rol === '@Roles.Psicologo' ? 'block' : 'none';
+    }
+    </script>
+}

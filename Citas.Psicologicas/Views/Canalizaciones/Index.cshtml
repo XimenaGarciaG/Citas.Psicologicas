@@ -1,0 +1,82 @@
+@model Citas.Psicologicas.ViewModels.Canalizaciones.CanalizacionIndexViewModel
+@{
+    ViewBag.PageTitle = "Canalizaciones";
+    var rol = Context.Session.GetString("Rol") ?? "";
+}
+
+<div class="animate-fade-up">
+    <div class="page-header">
+        <div>
+            <h1 class="page-header-title"><i class="fa fa-share-nodes me-2"></i>Canalizaciones</h1>
+            <p class="page-header-subtitle">@Model.Canalizaciones.Count canalización(es) registrada(s)</p>
+        </div>
+        @if (rol == Roles.Tutor || rol == Roles.Administrador)
+        {
+            <a href="/Canalizaciones/Create" class="btn btn-primary">
+                <i class="fa fa-plus me-1"></i> Nueva Canalización
+            </a>
+        }
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-5">
+                    <input type="text" name="busqueda" class="form-control" value="@Model.FiltroBusqueda" placeholder="Buscar por estudiante o motivo">
+                </div>
+                <div class="col-md-3">
+                    <select name="estado" class="form-select">
+                        <option value="">Todos los estados</option>
+                        <option value="@EstadosCanalizacion.Pendiente">Pendiente</option>
+                        <option value="@EstadosCanalizacion.Atendida">Atendida</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+                </div>
+                <div class="col-md-2">
+                    <a href="/Canalizaciones" class="btn btn-light w-100">Limpiar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body p-0">
+            @if (!Model.Canalizaciones.Any())
+            {
+                <div class="empty-state">
+                    <i class="fa fa-share-nodes empty-state-icon"></i>
+                    <div class="empty-state-title">Sin canalizaciones</div>
+                    <p class="empty-state-text">No hay canalizaciones registradas.</p>
+                </div>
+            }
+            else
+            {
+                <table class="table-modern datatable w-100">
+                    <thead>
+                        <tr>
+                            <th>Estudiante</th>
+                            <th>Tutor</th>
+                            <th>Motivo</th>
+                            <th>Estado</th>
+                            <th>Fecha</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var c in Model.Canalizaciones)
+                        {
+                            <tr>
+                                <td class="fw-600">@c.NombreEstudiante</td>
+                                <td class="text-muted">@c.NombreTutor</td>
+                                <td class="text-muted text-truncate-2" style="max-width:250px">@c.Motivo</td>
+                                <td><span class="badge-pill badge-@c.Estado?.ToLower()">@c.Estado</span></td>
+                                <td class="text-muted small">@(c.FechaCanalizacion?.ToString("dd/MM/yyyy") ?? "—")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+</div>

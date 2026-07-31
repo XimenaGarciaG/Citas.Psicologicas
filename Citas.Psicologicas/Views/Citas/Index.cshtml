@@ -1,0 +1,181 @@
+@model Citas.Psicologicas.ViewModels.Citas.CitaIndexViewModel
+@{
+    ViewBag.PageTitle = "Agenda de Citas";
+    var rol = Context.Session.GetString("Rol") ?? "";
+}
+
+@section Styles {
+    @if (Model.Vista == "Calendario")
+    {
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css">
+    }
+}
+
+<div class="animate-fade-up">
+    <div class="page-header">
+        <div>
+            <h1 class="page-header-title"><i class="fa fa-calendar-check me-2"></i>Agenda de Citas</h1>
+            <p class="page-header-subtitle">
+                @Model.Total cita(s) &bull;
+                <span class="text-primary fw-600">@Model.Reservadas reservadas</span> &bull;
+                <span class="text-success fw-600">@Model.Confirmadas confirmadas</span> &bull;
+                <span class="text-danger fw-600">@Model.Canceladas canceladas</span>
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <!-- Toggle Vista -->
+            <div class="btn-group">
+                <a href="@Url.Action("Index", new { vista = "Lista", estado = Model.FiltroEstado, busqueda = Model.FiltroBusqueda })"
+                   class="btn btn-sm @(Model.Vista == "Lista" ? "btn-primary" : "btn-outline-primary")">
+                    <i class="fa fa-list"></i> Lista
+                </a>
+                <a href="@Url.Action("Index", new { vista = "Calendario", estado = Model.FiltroEstado })"
+                   class="btn btn-sm @(Model.Vista == "Calendario" ? "btn-primary" : "btn-outline-primary")">
+                    <i class="fa fa-calendar"></i> Calendario
+                </a>
+            </div>
+
+            @if (rol == Roles.Administrador || rol == Roles.Psicologo)
+            {
+                <a href="/Citas/Create" class="btn btn-primary">
+                    <i class="fa fa-plus me-1"></i> Agendar Cita
+                </a>
+            }
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <input type="hidden" name="vista" value="@Model.Vista">
+                <div class="col-md-3">
+                    <input type="text" name="busqueda" class="form-control" value="@Model.FiltroBusqueda" placeholder="🔍 Buscar">
+                </div>
+                <div class="col-md-2">
+                    <select name="estado" class="form-select">
+                        <option value="">Todos</option>
+                        <option value="@EstadosCita.Reservada" selected="@(Model.FiltroEstado == EstadosCita.Reservada)">Reservada</option>
+                        <option value="@EstadosCita.Confirmada" selected="@(Model.FiltroEstado == EstadosCita.Confirmada)">Confirmada</option>
+                        <option value="@EstadosCita.Cancelada" selected="@(Model.FiltroEstado == EstadosCita.Cancelada)">Cancelada</option>
+                        <option value="@EstadosCita.Concluida" selected="@(Model.FiltroEstado == EstadosCita.Concluida)">Concluida</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <input type="date" name="inicio" class="form-control" value="@Model.FiltroFechaInicio?.ToString("yyyy-MM-dd")">
+                </div>
+                <div class="col-md-2">
+                    <input type="date" name="fin" class="form-control" value="@Model.FiltroFechaFin?.ToString("yyyy-MM-dd")">
+                </div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary flex-fill"><i class="fa fa-filter"></i> Filtrar</button>
+                    <a href="/Citas" class="btn btn-light"><i class="fa fa-times"></i></a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    @if (Model.Vista == "Calendario")
+    {
+        <!-- Vista Calendario -->
+        <div class="card">
+            <div class="card-body">
+                <div id="calendar"></div>
+            </div>
+        </div>
+
+        <!-- Modal de cita del calendario -->
+        <div class="modal fade" id="modalCita" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="fa fa-calendar-check me-2"></i>Detalle de Cita</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <dl class="row">
+                            <dt class="col-sm-4">Estudiante</dt>
+                            <dd class="col-sm-8" id="modal-cita-estudiante"></dd>
+                            <dt class="col-sm-4">Psicólogo/a</dt>
+                            <dd class="col-sm-8" id="modal-cita-psicologo"></dd>
+                            <dt class="col-sm-4">Fecha</dt>
+                            <dd class="col-sm-8" id="modal-cita-fecha"></dd>
+                            <dt class="col-sm-4">Horario</dt>
+                            <dd class="col-sm-8" id="modal-cita-hora"></dd>
+                            <dt class="col-sm-4">Estado</dt>
+                            <dd class="col-sm-8" id="modal-cita-estado"></dd>
+                        </dl>
+                    </div>
+                    <div class="modal-footer">
+                        <a id="modal-cita-link" href="#" class="btn btn-primary">Ver detalle completo</a>
+                        <button class="btn btn-light" data-bs-dismiss="modal">Cerrar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Vista Lista -->
+        <div class="card">
+            <div class="card-body p-0">
+                @if (!Model.Citas.Any())
+                {
+                    <div class="empty-state">
+                        <i class="fa fa-calendar-xmark empty-state-icon"></i>
+                        <div class="empty-state-title">Sin citas</div>
+                        <p class="empty-state-text">No hay citas con los filtros aplicados.</p>
+                    </div>
+                }
+                else
+                {
+                    <table class="table-modern datatable w-100" data-order='[[3,"asc"]]'>
+                        <thead>
+                            <tr>
+                                <th>Estudiante</th>
+                                <th>Psicólogo/a</th>
+                                <th>Fecha</th>
+                                <th>Horario</th>
+                                <th>Estado</th>
+                                <th>Prioridad</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var c in Model.Citas)
+                            {
+                                <tr>
+                                    <td class="fw-600">@c.NombreEstudiante</td>
+                                    <td class="text-muted">@c.NombrePsicologo</td>
+                                    <td>@c.Fecha.ToString("dd/MM/yyyy")</td>
+                                    <td class="text-muted small">@c.HoraInicio – @c.HoraFin</td>
+                                    <td><span class="badge-pill badge-@c.BadgeEstado">@c.Estado</span></td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(c.Prioridad))
+                                        { <span class="badge-pill badge-@c.Prioridad.ToLower()">@c.Prioridad</span> }
+                                        else { <span class="text-muted small">—</span> }
+                                    </td>
+                                    <td>
+                                        <a href="/Citas/Details/@c.Id" class="btn btn-icon btn-light btn-sm" title="Detalle">
+                                            <i class="fa fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    @if (Model.Vista == "Calendario")
+    {
+        <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@@fullcalendar/core@6.1.11/locales/es.global.min.js"></script>
+        <script src="~/js/calendar.js" asp-append-version="true"></script>
+        <script>initCalendar(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.CitasJson)));</script>
+    }
+}

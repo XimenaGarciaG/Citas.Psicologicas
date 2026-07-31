@@ -1,0 +1,117 @@
+@model Citas.Psicologicas.DTOs.Solicitudes.SolicitudDto
+@{
+    ViewBag.PageTitle = "Detalle de Solicitud";
+    var rol = Context.Session.GetString("Rol") ?? "";
+}
+
+<div class="animate-fade-up">
+    <div class="page-header">
+        <div>
+            <h1 class="page-header-title"><i class="fa fa-file-medical me-2"></i>Detalle de Solicitud</h1>
+        </div>
+        <a href="/Solicitudes" class="btn btn-light"><i class="fa fa-arrow-left me-1"></i> Regresar</a>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Información de la Solicitud</h2>
+                    <span class="badge-pill badge-@Model.BadgeEstado">@Model.Estado</span>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-4">Estudiante</dt>
+                        <dd class="col-sm-8 fw-600">@Model.NombreEstudiante</dd>
+
+                        <dt class="col-sm-4">Fecha</dt>
+                        <dd class="col-sm-8">@(Model.FechaSolicitud?.ToString("dd/MM/yyyy HH:mm") ?? "—")</dd>
+
+                        <dt class="col-sm-4">Prioridad</dt>
+                        <dd class="col-sm-8">
+                            @if (!string.IsNullOrEmpty(Model.Prioridad))
+                            { <span class="badge-pill badge-@Model.Prioridad.ToLower()">@Model.Prioridad</span> }
+                            else { <span class="text-muted">Sin asignar (después de la primera sesión)</span> }
+                        </dd>
+
+                        @if (!string.IsNullOrEmpty(Model.NombrePsicologo))
+                        {
+                            <dt class="col-sm-4">Psicólogo/a</dt>
+                            <dd class="col-sm-8">@Model.NombrePsicologo</dd>
+                        }
+
+                        @if (!string.IsNullOrEmpty(Model.Comentario))
+                        {
+                            <dt class="col-sm-4">Comentario</dt>
+                            <dd class="col-sm-8 fst-italic text-muted">“@Model.Comentario”</dd>
+                        }
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel asignar prioridad (solo psicólogo) -->
+        @if ((rol == Roles.Psicologo || rol == Roles.Administrador) && Model.Estado != EstadosSolicitud.Cancelada)
+        {
+            <div class="col-lg-5">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title"><i class="fa fa-star me-2 text-warning"></i>Asignar Prioridad</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info small">
+                            <i class="fa fa-info-circle me-1"></i>
+                            La prioridad debe ser asignada exclusivamente por la psicóloga, después de la primera sesión.
+                        </div>
+
+                        <form asp-controller="Solicitudes" asp-action="AsignarPrioridad" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="IdSolicitud" value="@Model.Id">
+                            <input type="hidden" name="NombreEstudiante" value="@Model.NombreEstudiante">
+
+                            <div class="mb-3">
+                                <label class="form-label">Prioridad</label>
+                                <div class="d-flex gap-2">
+                                    <div class="form-check">
+                                        <input type="radio" name="Prioridad" value="@Prioridades.Alta" id="pAlta" class="form-check-input">
+                                        <label for="pAlta" class="form-check-label text-danger fw-600">Alta</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="radio" name="Prioridad" value="@Prioridades.Media" id="pMedia" class="form-check-input">
+                                        <label for="pMedia" class="form-check-label text-warning fw-600">Media</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="radio" name="Prioridad" value="@Prioridades.Baja" id="pBaja" class="form-check-input">
+                                        <label for="pBaja" class="form-check-label text-success fw-600">Baja</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Estado</label>
+                                <select name="Estado" class="form-select">
+                                    <option value="">Sin cambio</option>
+                                    <option value="@EstadosSolicitud.Atendida">Atendida</option>
+                                    <option value="@EstadosSolicitud.Cancelada">Cancelada</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Observaciones</label>
+                                <textarea name="Observaciones" class="form-control" rows="3" placeholder="Opcional"></textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fa fa-star me-1"></i> Asignar Prioridad
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

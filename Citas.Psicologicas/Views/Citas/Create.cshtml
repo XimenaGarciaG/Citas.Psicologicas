@@ -1,0 +1,116 @@
+@model Citas.Psicologicas.ViewModels.Citas.CitaCreateViewModel
+@{
+    ViewBag.PageTitle = "Agendar Cita";
+}
+
+@section Styles {
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+}
+
+<div class="animate-fade-up">
+    <div class="page-header">
+        <div>
+            <h1 class="page-header-title"><i class="fa fa-calendar-plus me-2"></i>Agendar Nueva Cita</h1>
+            <p class="page-header-subtitle">Seleccione la solicitud de atención y programe la cita psicológica</p>
+        </div>
+        <a href="/Citas" class="btn btn-light"><i class="fa fa-arrow-left me-1"></i> Regresar</a>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Datos de la Cita</h2>
+                </div>
+                <div class="card-body">
+                    <form asp-controller="Citas" asp-action="Create" method="post" data-loading="Agendando cita...">
+                        @Html.AntiForgeryToken()
+
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label asp-for="IdSolicitud" class="form-label"></label>
+                                <select asp-for="IdSolicitud" class="form-select" id="selectSolicitud">
+                                    <option value="">-- Buscar solicitud pendiente --</option>
+                                    @foreach (var s in Model.SolicitudesPendientes)
+                                    {
+                                        <option value="@s.Id">
+                                            @s.NombreEstudiante (@s.MatriculaEstudiante) – @(s.FechaSolicitud?.ToString("dd/MM/yyyy")) – Prioridad @s.Prioridad
+                                        </option>
+                                    }
+                                </select>
+                                <div class="form-text">
+                                    Solo se muestran solicitudes <strong>pendientes</strong>. Si no encuentra la solicitud, debe crearla primero en el módulo de Solicitudes.
+                                </div>
+                                <span asp-validation-for="IdSolicitud" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label asp-for="IdPsicologo" class="form-label"></label>
+                                <select asp-for="IdPsicologo" class="form-select">
+                                    <option value="">-- Seleccione psicólogo/a --</option>
+                                    @foreach (var p in Model.Psicologos)
+                                    {
+                                        <option value="@p.Id">@p.NombreCompleto</option>
+                                    }
+                                </select>
+                                <span asp-validation-for="IdPsicologo" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label asp-for="MinutosTolerancia" class="form-label"></label>
+                                <input asp-for="MinutosTolerancia" type="number" min="0" max="120" class="form-control">
+                                <span asp-validation-for="MinutosTolerancia" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label asp-for="FechaCita" class="form-label"></label>
+                                <input asp-for="FechaCita" type="date" class="form-control"
+                                       min="@DateTime.Today.AddDays(1).ToString("yyyy-MM-dd")">
+                                <span asp-validation-for="FechaCita" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label asp-for="HoraInicio" class="form-label"></label>
+                                <input asp-for="HoraInicio" type="time" class="form-control" min="08:00" max="18:00">
+                                <span asp-validation-for="HoraInicio" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label asp-for="HoraFin" class="form-label"></label>
+                                <input asp-for="HoraFin" type="time" class="form-control" min="08:00" max="18:00">
+                                <span asp-validation-for="HoraFin" class="text-danger small"></span>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="/Citas" class="btn btn-light px-4">Cancelar</a>
+                            <button type="submit" class="btn btn-primary px-4">
+                                <i class="fa fa-calendar-plus me-1"></i> Agendar Cita
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script>
+    (function () {
+        const sel = document.getElementById('selectSolicitud');
+        if (sel && window.jQuery && jQuery.fn.select2) {
+            jQuery(sel).select2({
+                theme: 'bootstrap-5',
+                placeholder: '-- Buscar solicitud pendiente --',
+                allowClear: true,
+                width: '100%'
+            });
+        }
+    })();
+    </script>
+}

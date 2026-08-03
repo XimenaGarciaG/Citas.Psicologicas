@@ -1,0 +1,104 @@
+@{
+    ViewBag.PageTitle = "Catálogos";
+    var carreras = ViewBag.Carreras as List<Citas.Psicologicas.Models.Carrera> ?? new();
+    var grupos = ViewBag.Grupos as List<Citas.Psicologicas.Models.Grupo> ?? new();
+}
+
+<div class="animate-fade-up">
+    <div class="page-header">
+        <div>
+            <h1 class="page-header-title"><i class="fa fa-book me-2"></i>Catálogos</h1>
+            <p class="page-header-subtitle">Administración de catálogos institucionales (carreras y grupos)</p>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h2 class="card-title"><i class="fa fa-graduation-cap me-1"></i> Carreras</h2>
+                </div>
+                <div class="card-body">
+                    <form method="post" asp-action="CrearCarrera" class="d-flex gap-2 mb-3">
+                        @Html.AntiForgeryToken()
+                        <input type="text" name="nombre" class="form-control" placeholder="Nombre de la carrera" required />
+                        <button type="submit" class="btn btn-primary text-nowrap"><i class="fa fa-plus me-1"></i> Agregar</button>
+                    </form>
+
+                    @if (!carreras.Any())
+                    {
+                        <p class="text-muted">Sin carreras registradas.</p>
+                    }
+                    else
+                    {
+                        <ul class="list-group">
+                            @foreach (var c in carreras)
+                            {
+                                <li class="list-group-item">
+                                    <form method="post" asp-action="EditarCarrera" asp-route-id="@c.Id" class="d-flex gap-2 align-items-center">
+                                        @Html.AntiForgeryToken()
+                                        <input type="text" name="nombre" value="@c.Nombre" class="form-control form-control-sm" required />
+                                        <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap" title="Guardar">
+                                            <i class="fa fa-save"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                                onclick="confirmAction('formDelCarrera_@c.Id', 'Eliminar carrera', '¿Eliminar la carrera seleccionada?', 'warning', 'Eliminar', '#DC2626')">
+                                            <i class="fa fa-trash"></i>
+                                        </button>
+                                    </form>
+                                    <form method="post" asp-action="EliminarCarrera" asp-route-id="@c.Id" id="formDelCarrera_@c.Id" class="d-none">
+                                        @Html.AntiForgeryToken()
+                                    </form>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h2 class="card-title"><i class="fa fa-users me-1"></i> Grupos</h2>
+                </div>
+                <div class="card-body">
+                    <form method="post" asp-action="CrearGrupo" class="d-flex gap-2 mb-3">
+                        @Html.AntiForgeryToken()
+                        <input type="text" name="nombre" class="form-control" placeholder="Nombre del grupo" required />
+                        <button type="submit" class="btn btn-primary text-nowrap"><i class="fa fa-plus me-1"></i> Agregar</button>
+                    </form>
+
+                    @if (!grupos.Any())
+                    {
+                        <p class="text-muted">Sin grupos registrados.</p>
+                    }
+                    else
+                    {
+                        <ul class="list-group">
+                            @foreach (var g in grupos)
+                            {
+                                <li class="list-group-item">
+                                    <form method="post" asp-action="EditarGrupo" asp-route-id="@g.Id" class="d-flex gap-2 align-items-center">
+                                        @Html.AntiForgeryToken()
+                                        <input type="text" name="nombre" value="@g.Nombre" class="form-control form-control-sm" required />
+                                        <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap" title="Guardar">
+                                            <i class="fa fa-save"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                                onclick="confirmAction('formDelGrupo_@g.Id', 'Eliminar grupo', '¿Eliminar el grupo seleccionado?', 'warning', 'Eliminar', '#DC2626')">
+                                            <i class="fa fa-trash"></i>
+                                        </button>
+                                    </form>
+                                    <form method="post" asp-action="EliminarGrupo" asp-route-id="@g.Id" id="formDelGrupo_@g.Id" class="d-none">
+                                        @Html.AntiForgeryToken()
+                                    </form>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

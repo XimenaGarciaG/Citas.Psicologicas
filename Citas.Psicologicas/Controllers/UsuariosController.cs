@@ -13,11 +13,16 @@ namespace Citas.Psicologicas.Controllers;
 public class UsuariosController : Controller
 {
     private readonly IUsuarioService _usuarioService;
+    private readonly ILocalDataService _localData;
     private readonly ILogger<UsuariosController> _logger;
 
-    public UsuariosController(IUsuarioService usuarioService, ILogger<UsuariosController> logger)
+    public UsuariosController(
+        IUsuarioService usuarioService,
+        ILocalDataService localData,
+        ILogger<UsuariosController> logger)
     {
         _usuarioService = usuarioService;
+        _localData = localData;
         _logger = logger;
     }
 
@@ -28,6 +33,14 @@ public class UsuariosController : Controller
         var result = await _usuarioService.GetAllAsync(token);
 
         var usuarios = result.Data ?? [];
+
+        // Estado local (respaldo): el estado se sincroniza con la capa local.
+        foreach (var u in usuarios)
+        {
+            var activoLocal = _localData.GetUsuarioActivoLocal(u.Id);
+            if (activoLocal.HasValue)
+                u.Estatus = activoLocal.Value;
+        }
 
         if (!string.IsNullOrEmpty(busqueda))
             usuarios = usuarios.Where(u =>
@@ -179,5 +192,54 @@ public class UsuariosController : Controller
 
         ViewBag.PageTitle = "Detalle de Usuario";
         return View(result.Data);
+    }
+
+    // POST: /Usuarios/ToggleActivo/{id}  (Activar/Desactivar usuario con respaldo local)
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ToggleActivo(string id)
+    {
+        var token = SessionHelper.GetToken(HttpContext.Session)!;
+        var result = await _usuarioService.GetByIdAsync(id, token);
+
+        if (!result.Success || result.Data is null)
+        {
+            TempData["Error"] = "Usuario no encontrado.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var nuevoEstado = !result.Data.Activo;
+        _localData.SetUsuarioActivoLocal(id, nuevoEstado);
+        TempData["Success"] = nuevoEstado ? "Usuario activado correctamente." : "Usuario desactivado correctamente.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    // POST: /Usuarios/ResetPassword/{id}  (genera contraseña temporal local y la muestra una sola vez)
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetPassword(string id)
+    {
+        var token = SessionHelper.GetToken(HttpContext.Session)!;
+        var result = await _usuarioService.GetByIdAsync(id, token);
+
+        if (!result.Success || result.Data is null)
+        {
+            TempData["Error"] = "Usuario no encontrado.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var nuevaClave = GenerarClaveTemporal();
+        _localData.SetContrasenaLocal(id, nuevaClave);
+        if (!string.IsNullOrWhiteSpace(result.Data.Correo))
+            _localData.SetContrasenaLocalPorCorreo(result.Data.Correo, nuevaClave);
+        TempData["Success"] = $"Contraseña temporal generada para {result.Data.NombreCompleto}: {nuevaClave}";
+        return RedirectToAction(nameof(Index));
+    }
+
+    private static string GenerarClaveTemporal()
+    {
+        const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+        var random = new Random();
+        return new string(Enumerable.Repeat(chars, 10).Select(s => s[random.Next(s.Length)]).ToArray()) + "!";
     }
 }

@@ -21,6 +21,31 @@ public class SolicitudesController : Controller
         _logger = logger;
     }
 
+    // GET: /Solicitudes/AsignarCita/{id}  (flujo de asignación de cita desde la solicitud)
+    [AuthorizeRole(Roles.Psicologo, Roles.Administrador)]
+    public async Task<IActionResult> AsignarCita(string id)
+    {
+        var token = SessionHelper.GetToken(HttpContext.Session)!;
+        var result = await _solicitudService.GetByIdAsync(id, token);
+
+        if (!result.Success || result.Data is null)
+        {
+            TempData["Error"] = "Solicitud no encontrada.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        return RedirectToAction("Create", "Citas", new { idSolicitud = id });
+    }
+
+    // GET: /Solicitudes/Bandeja  (cola de atención de la psicóloga)
+    [AuthorizeRole(Roles.Psicologo, Roles.Administrador)]
+    public Task<IActionResult> Bandeja()
+    {
+        ViewBag.PageTitle = "Bandeja de Solicitudes";
+        ViewBag.Breadcrumb = new[] { ("Solicitudes", "/Solicitudes/Bandeja") };
+        return Index(estado: EstadosSolicitud.Pendiente, prioridad: null, busqueda: null);
+    }
+
     // GET: /Solicitudes
     public async Task<IActionResult> Index(string? estado, string? prioridad, string? busqueda)
     {
@@ -109,6 +134,14 @@ public class SolicitudesController : Controller
         if (!result.Success || result.Data is null)
         {
             TempData["Error"] = "Solicitud no encontrada.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        // Regla de acceso: el estudiante solo ve sus propias solicitudes.
+        if (SessionHelper.GetRol(HttpContext.Session) == Roles.Estudiante &&
+            !string.Equals(result.Data.IdEstudianteStr, SessionHelper.GetIdUsuario(HttpContext.Session), StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["Error"] = "No tiene permisos para ver esta solicitud.";
             return RedirectToAction(nameof(Index));
         }
 

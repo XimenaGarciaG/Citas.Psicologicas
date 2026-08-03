@@ -1,0 +1,70 @@
+@model Citas.Psicologicas.Models.NotificacionRegistro
+@{
+    ViewBag.PageTitle = "Enviar Notificación";
+}
+
+<div class="animate-fade-up">
+    <div class="page-header">
+        <div>
+            <h1 class="page-header-title"><i class="fa fa-paper-plane me-2"></i>Enviar Notificación</h1>
+            <p class="page-header-subtitle">Componer y registrar una notificación o correo en el historial</p>
+        </div>
+        <a href="/Notificaciones" class="btn btn-light"><i class="fa fa-arrow-left me-1"></i> Regresar</a>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <form asp-action="Enviar" method="post" class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Nueva notificación</h2>
+                </div>
+                <div class="card-body">
+                    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="Tipo" class="form-label">Tipo</label>
+                            <select asp-for="Tipo" class="form-select">
+                                <option>Confirmacion</option>
+                                <option>Recordatorio</option>
+                                <option>Reagenda</option>
+                                <option>Cancelacion</option>
+                                <option>ResetPassword</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="CorreoDestinatario" class="form-label">Correo del destinatario</label>
+                            <input asp-for="CorreoDestinatario" type="email" class="form-control"
+                                   placeholder="correo@estudiantes.uttt.edu.mx" />
+                            <span asp-validation-for="CorreoDestinatario" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="NombreEstudiante" class="form-label">Estudiante</label>
+                            <input asp-for="NombreEstudiante" class="form-control" placeholder="Nombre del estudiante" />
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="IdEstudiante" class="form-label">Id del estudiante</label>
+                            <input asp-for="IdEstudiante" class="form-control" placeholder="Opcional" />
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Asunto" class="form-label">Asunto</label>
+                            <input asp-for="Asunto" class="form-control" placeholder="Asunto del correo" />
+                            <span asp-validation-for="Asunto" class="text-danger small"></span>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Cuerpo" class="form-label">Mensaje</label>
+                            <textarea asp-for="Cuerpo" class="form-control" rows="5"
+                                      placeholder="Contenido del mensaje"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-end gap-2">
+                    <a href="/Notificaciones" class="btn btn-light">Cancelar</a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa fa-paper-plane me-1"></i> Enviar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

@@ -11,6 +11,8 @@ public class SessionValidationMiddleware
     [
         "/Auth/Login",
         "/Auth/Register",
+        "/Auth/ForgotPassword",
+        "/Auth/ResetPassword",
         "/Auth/Logout",
         "/Error",
         "/AccessDenied"

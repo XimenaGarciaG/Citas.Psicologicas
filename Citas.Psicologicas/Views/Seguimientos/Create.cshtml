@@ -1,0 +1,53 @@
+@model Citas.Psicologicas.Models.SeguimientoRegistro
+@{
+    ViewBag.PageTitle = "Nuevo Seguimiento";
+}
+
+<div class="animate-fade-up">
+    <div class="page-header">
+        <div>
+            <h1 class="page-header-title"><i class="fa fa-list-check me-2"></i>Nuevo Seguimiento</h1>
+        </div>
+        <a href="/Seguimientos" class="btn btn-light"><i class="fa fa-arrow-left me-1"></i> Regresar</a>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <form asp-action="Create" method="post" class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Datos del seguimiento</h2>
+                </div>
+                <div class="card-body">
+                    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="NombreEstudiante" class="form-label">Estudiante</label>
+                        <input asp-for="NombreEstudiante" class="form-control" placeholder="Nombre del estudiante" />
+                        <span asp-validation-for="NombreEstudiante" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Motivo" class="form-label">Motivo</label>
+                        <textarea asp-for="Motivo" class="form-control" rows="3"
+                                  placeholder="Motivo o indicación para el seguimiento"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="FechaProgramada" class="form-label">Fecha programada (opcional)</label>
+                        <input asp-for="FechaProgramada" class="form-control" type="date" />
+                        <small class="text-muted">Si no se especifica, el seguimiento queda como pendiente.</small>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input asp-for="Programado" class="form-check-input" type="checkbox" />
+                        <label asp-for="Programado" class="form-check-label">Seguimiento programado</label>
+                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-end gap-2">
+                    <a href="/Seguimientos" class="btn btn-light">Cancelar</a>
+                    <button type="submit" class="btn btn-primary"><i class="fa fa-save me-1"></i> Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

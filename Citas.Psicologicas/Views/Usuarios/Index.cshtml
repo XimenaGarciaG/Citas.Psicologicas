@@ -55,6 +55,25 @@
         </div>
     </div>
 
+    <!-- Pestañas rápidas por rol -->
+    <div class="mb-3 d-flex gap-2 flex-wrap">
+        <a href="/Usuarios" class="btn btn-sm @(string.IsNullOrEmpty(Model.FiltroRol) ? "btn-primary" : "btn-outline-primary")">
+            Todos
+        </a>
+        <a href="/Usuarios?rol=@Roles.Psicologo" class="btn btn-sm @(Model.FiltroRol == Roles.Psicologo ? "btn-primary" : "btn-outline-primary")">
+            <i class="fa fa-user-doctor me-1"></i> Psicólogas
+        </a>
+        <a href="/Usuarios?rol=@Roles.Estudiante" class="btn btn-sm @(Model.FiltroRol == Roles.Estudiante ? "btn-primary" : "btn-outline-primary")">
+            <i class="fa fa-user-graduate me-1"></i> Estudiantes
+        </a>
+        <a href="/Usuarios?rol=@Roles.Tutor" class="btn btn-sm @(Model.FiltroRol == Roles.Tutor ? "btn-primary" : "btn-outline-primary")">
+            <i class="fa fa-user-tie me-1"></i> Tutores
+        </a>
+        <a href="/Usuarios?rol=@Roles.Administrador" class="btn btn-sm @(Model.FiltroRol == Roles.Administrador ? "btn-primary" : "btn-outline-primary")">
+            <i class="fa fa-user-shield me-1"></i> Administradores
+        </a>
+    </div>
+
     <div class="card">
         <div class="card-header">
             <h2 class="card-title">@Model.TotalRegistros usuario(s) encontrado(s)</h2>
@@ -117,6 +136,25 @@
                                                data-bs-toggle="tooltip" title="Editar">
                                                 <i class="fa fa-pen"></i>
                                             </a>
+                                            <form method="post" asp-action="ToggleActivo" asp-route-id="@u.Id" class="d-inline" id="formToggle_@u.Id">
+                                                @Html.AntiForgeryToken()
+                                                <button type="button"
+                                                        class="btn btn-icon btn-sm @(u.Activo ? "btn-light text-danger" : "btn-light text-success")"
+                                                        data-bs-toggle="tooltip"
+                                                        title="@(u.Activo ? "Desactivar" : "Activar")"
+                                                        onclick="confirmAction('formToggle_@u.Id', '@(u.Activo ? "Desactivar usuario" : "Activar usuario")', '¿Desea @(u.Activo ? "desactivar" : "activar") a @u.NombreCompleto?', 'warning', 'Confirmar', '#DC2626')">
+                                                    <i class="fa @(u.Activo ? "fa-user-slash" : "fa-user-check")"></i>
+                                                </button>
+                                            </form>
+                                            <form method="post" asp-action="ResetPassword" asp-route-id="@u.Id" class="d-inline" id="formReset_@u.Id">
+                                                @Html.AntiForgeryToken()
+                                                <button type="button"
+                                                        class="btn btn-icon btn-light btn-sm"
+                                                        data-bs-toggle="tooltip" title="Restablecer contraseña"
+                                                        onclick="confirmAction('formReset_@u.Id', 'Restablecer contraseña', '¿Generar una contraseña temporal para @u.NombreCompleto?', 'question', 'Generar', '#2563EB')">
+                                                    <i class="fa fa-key"></i>
+                                                </button>
+                                            </form>
                                         </div>
                                     </td>
                                 </tr>

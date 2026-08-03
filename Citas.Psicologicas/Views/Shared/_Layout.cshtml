@@ -85,7 +85,28 @@
             }
 
             <div class="nav-section-title">Agenda</div>
-            <a href="/Citas" class="nav-item-link @(currentPath.StartsWith("/citas") ? "active" : "")">
+            @if (isPsico || isAdmin)
+            {
+                <a href="/Citas/Agenda" class="nav-item-link @(currentPath.StartsWith("/citas/agenda") ? "active" : "")">
+                    <span class="nav-icon"><i class="fa fa-calendar-days"></i></span>
+                    <span class="nav-label">Agenda</span>
+                </a>
+            }
+            @if (isEstud)
+            {
+                <a href="/Citas/Disponibilidad" class="nav-item-link @(currentPath.StartsWith("/citas/disponibilidad") ? "active" : "")">
+                    <span class="nav-icon"><i class="fa fa-calendar-day"></i></span>
+                    <span class="nav-label">Disponibilidad</span>
+                </a>
+            }
+            @if (isPsico || isAdmin)
+            {
+                <a href="/Solicitudes/Bandeja" class="nav-item-link @(currentPath.StartsWith("/solicitudes/bandeja") ? "active" : "")">
+                    <span class="nav-icon"><i class="fa fa-inbox"></i></span>
+                    <span class="nav-label">Bandeja</span>
+                </a>
+            }
+            <a href="/Citas" class="nav-item-link @(currentPath.StartsWith("/citas") && !currentPath.StartsWith("/citas/agenda") && !currentPath.StartsWith("/citas/disponibilidad") ? "active" : "")">
                 <span class="nav-icon"><i class="fa fa-calendar-check"></i></span>
                 <span class="nav-label">Citas</span>
             </a>
@@ -101,7 +122,34 @@
                     <span class="nav-icon"><i class="fa fa-file-chart-column"></i></span>
                     <span class="nav-label">Reportes</span>
                 </a>
+                <a href="/Seguimientos" class="nav-item-link @(currentPath.StartsWith("/seguimientos") ? "active" : "")">
+                    <span class="nav-icon"><i class="fa fa-list-check"></i></span>
+                    <span class="nav-label">Seguimientos</span>
+                </a>
+                <a href="/Notificaciones" class="nav-item-link @(currentPath.StartsWith("/notificaciones") ? "active" : "")">
+                    <span class="nav-icon"><i class="fa fa-bell"></i></span>
+                    <span class="nav-label">Notificaciones</span>
+                </a>
             }
+
+            @if (isAdmin)
+            {
+                <div class="nav-section-title">Configuración</div>
+                <a href="/Catalogos" class="nav-item-link @(currentPath.StartsWith("/catalogos") ? "active" : "")">
+                    <span class="nav-icon"><i class="fa fa-book"></i></span>
+                    <span class="nav-label">Catálogos</span>
+                </a>
+                <a href="/Configuracion" class="nav-item-link @(currentPath.StartsWith("/configuracion") ? "active" : "")">
+                    <span class="nav-icon"><i class="fa fa-gear"></i></span>
+                    <span class="nav-label">Configuración</span>
+                </a>
+            }
+
+            <div class="nav-section-title">Cuenta</div>
+            <a href="/Perfil" class="nav-item-link @(currentPath.StartsWith("/perfil") ? "active" : "")">
+                <span class="nav-icon"><i class="fa fa-user"></i></span>
+                <span class="nav-label">Mi perfil</span>
+            </a>
         </div>
 
         <!-- Footer del sidebar -->
@@ -168,6 +216,11 @@
                             </div>
                         </li>
                         <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="/Perfil">
+                                <i class="fa fa-user me-2"></i> Mi perfil
+                            </a>
+                        </li>
                         <li>
                             <form asp-controller="Auth" asp-action="Logout" method="post" id="logoutForm">
                                 @Html.AntiForgeryToken()

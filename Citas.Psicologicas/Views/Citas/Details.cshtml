@@ -85,6 +85,42 @@
                             }
                         </div>
                     }
+
+                    <!-- Acciones del estudiante -->
+                    @if (rol == Roles.Estudiante)
+                    {
+                        <hr>
+                        <div class="d-flex gap-2 flex-wrap align-items-center">
+                            @if (Model.PuedeCancelarEstudiante)
+                            {
+                                <form asp-action="Cancelar" asp-route-id="@Model.Cita.Id" method="post" id="formCancelarEstudiante">
+                                    @Html.AntiForgeryToken()
+                                    <button type="button" class="btn btn-outline-danger"
+                                            onclick="confirmAction('formCancelarEstudiante', 'Cancelar cita', '¿Está seguro de cancelar su cita?', 'warning', 'Cancelar cita', '#DC2626')">
+                                        <i class="fa fa-ban me-1"></i> Cancelar mi cita
+                                    </button>
+                                </form>
+                            }
+
+                            @if (Model.AsistenciaConfirmada)
+                            {
+                                <span class="badge-pill badge-confirmada">
+                                    <i class="fa fa-check me-1"></i> Asistencia confirmada
+                                    @(Model.FechaConfirmacion.HasValue ? $"el {Model.FechaConfirmacion.Value:dd/MM/yyyy HH:mm}" : "")
+                                </span>
+                            }
+                            else if (Model.PuedeConfirmarAsistencia)
+                            {
+                                <form asp-action="ConfirmarAsistencia" asp-route-id="@Model.Cita.Id" method="post" id="formConfirmarAsistencia">
+                                    @Html.AntiForgeryToken()
+                                    <button type="button" class="btn btn-success"
+                                            onclick="confirmAction('formConfirmarAsistencia', 'Confirmar asistencia', '¿Desea confirmar que asistió a la sesión?', 'question', 'Sí, asistí', '#059669')">
+                                        <i class="fa fa-user-check me-1"></i> Confirmar mi asistencia
+                                    </button>
+                                </form>
+                            }
+                        </div>
+                    }
                 </div>
             </div>
         </div>

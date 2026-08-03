@@ -26,7 +26,7 @@ public static class SessionHelper
         string nombreCompleto)
     {
         session.SetString(SessionKeys.Token, token);
-        session.SetString(SessionKeys.Rol, rol);
+        session.SetString(SessionKeys.Rol, (rol ?? string.Empty).ToUpperInvariant());
         session.SetString(SessionKeys.Correo, correo);
         session.SetString(SessionKeys.IdUsuario, idUsuario);
         session.SetString(SessionKeys.NombreCompleto, nombreCompleto);

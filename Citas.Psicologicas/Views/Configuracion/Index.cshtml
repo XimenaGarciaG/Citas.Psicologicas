@@ -1,0 +1,76 @@
+@model Citas.Psicologicas.Models.ConfiguracionSistema
+@{
+    ViewBag.PageTitle = "Configuración";
+}
+
+<div class="animate-fade-up">
+    <div class="page-header">
+        <div>
+            <h1 class="page-header-title"><i class="fa fa-gear me-2"></i>Configuración del Sistema</h1>
+            <p class="page-header-subtitle">Parámetros de atención aplicados a citas, cancelaciones y confirmaciones</p>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <form asp-action="Index" method="post" class="card">
+                <div class="card-header">
+                    <h2 class="card-title"><i class="fa fa-clock me-1"></i> Horarios de atención</h2>
+                </div>
+                <div class="card-body">
+                    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label asp-for="HorarioInicio" class="form-label">Hora de inicio</label>
+                            <input asp-for="HorarioInicio" class="form-control" type="time" />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="HorarioFin" class="form-label">Hora de fin</label>
+                            <input asp-for="HorarioFin" class="form-control" type="time" />
+                            <span asp-validation-for="HorarioFin" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="DuracionCitaMin" class="form-label">Duración de cita (min)</label>
+                            <input asp-for="DuracionCitaMin" class="form-control" type="number" min="15" step="15" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-header">
+                    <h2 class="card-title"><i class="fa fa-shield-halved me-1"></i> Ventanas y tolerancias</h2>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label asp-for="MinutosTolerancia" class="form-label">Tolerancia de llegada (min)</label>
+                            <input asp-for="MinutosTolerancia" class="form-control" type="number" min="0" step="5" />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="VentanaCancelacionHoras" class="form-label">Cancelación (horas antes)</label>
+                            <input asp-for="VentanaCancelacionHoras" class="form-control" type="number" min="1" />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="VentanaConfirmacionHoras" class="form-label">Confirmar asistencia (horas después)</label>
+                            <input asp-for="VentanaConfirmacionHoras" class="form-control" type="number" min="1" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-header">
+                    <h2 class="card-title"><i class="fa fa-bell me-1"></i> Recordatorios</h2>
+                </div>
+                <div class="card-body">
+                    <div class="col-md-4">
+                        <label asp-for="RecordatorioHorasAntes" class="form-label">Recordatorio (horas antes)</label>
+                        <input asp-for="RecordatorioHorasAntes" class="form-control" type="number" min="1" />
+                    </div>
+                </div>
+
+                <div class="card-footer d-flex justify-content-end gap-2">
+                    <button type="submit" class="btn btn-primary"><i class="fa fa-save me-1"></i> Guardar cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

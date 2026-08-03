@@ -38,6 +38,9 @@ public class RegisterViewModel
     [Display(Name = "Carrera")]
     public string? Carrera { get; set; }
 
+    /// <summary>Lista de carreras disponibles del catálogo institucional</summary>
+    public List<string> CarrerasDisponibles { get; set; } = [];
+
     [Display(Name = "Cuatrimestre")]
     public int? Cuatrimestre { get; set; }
 

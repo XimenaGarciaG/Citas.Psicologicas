@@ -14,7 +14,16 @@ public class AuthService : BaseApiService, IAuthService
 
     /// <inheritdoc/>
     public async Task<ApiResponse<LoginResponseDto>> LoginAsync(LoginRequestDto dto)
-        => await PostAsync<LoginResponseDto>(ApiRoutes.Login, dto);
+    {
+        var result = await PostAsync<LoginResponseDto>(ApiRoutes.Login, dto);
+
+        // La API responde HTTP 200 con { "mensaje": "..." } cuando las credenciales
+        // son inválidas, por lo que se valida la presencia del token.
+        if (result.Success && (result.Data is null || string.IsNullOrWhiteSpace(result.Data.Token)))
+            return ApiResponseHelper.Fail<LoginResponseDto>("Credenciales incorrectas o usuario inactivo. Verifique su correo y contraseña.");
+
+        return result;
+    }
 
     /// <inheritdoc/>
     public async Task<ApiResponse<CreateUsuarioResponseDto>> RegisterAsync(CreateUsuarioDto dto)

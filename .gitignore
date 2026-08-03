@@ -341,6 +341,9 @@ ASALocalRun/
 # MSBuild Binary and Structured Log
 *.binlog
 
+# Datos locales de ejecución (JSON con seeds, contraseñas y tokens)
+Citas.Psicologicas/AppData/
+
 # NVidia Nsight GPU debugger configuration file
 *.nvuser
 

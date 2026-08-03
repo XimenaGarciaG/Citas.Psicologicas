@@ -1,0 +1,76 @@
+@model Citas.Psicologicas.DTOs.Bitacora.BitacoraDto
+@{
+    ViewBag.PageTitle = "Detalle de Bitácora";
+    var confirmacion = ViewBag.ConfirmacionEstudiante as Citas.Psicologicas.Models.ConfirmacionAsistencia;
+}
+
+<div class="animate-fade-up">
+    <div class="page-header">
+        <div>
+            <h1 class="page-header-title"><i class="fa fa-book-open me-2"></i>Detalle de Bitácora</h1>
+            <p class="page-header-subtitle">Registro administrativo de asistencia</p>
+        </div>
+        <a href="/Bitacora" class="btn btn-light"><i class="fa fa-arrow-left me-1"></i> Regresar</a>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Información del registro</h2>
+                    <span class="badge-pill badge-@Model.BadgeAsistencia">@Model.TextoAsistencia</span>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-4">Estudiante</dt>
+                        <dd class="col-sm-8 fw-600">@Model.NombreEstudiante</dd>
+
+                        <dt class="col-sm-4">Psicólogo/a</dt>
+                        <dd class="col-sm-8">@Model.NombrePsicologo</dd>
+
+                        <dt class="col-sm-4">Fecha de la cita</dt>
+                        <dd class="col-sm-8">@(Model.FechaCita?.ToString("dd/MM/yyyy") ?? "—")</dd>
+
+                        <dt class="col-sm-4">Asistencia</dt>
+                        <dd class="col-sm-8">
+                            <span class="badge-pill badge-@Model.BadgeAsistencia">@Model.TextoAsistencia</span>
+                        </dd>
+
+                        <dt class="col-sm-4">Requiere seguimiento</dt>
+                        <dd class="col-sm-8">
+                            @if (Model.RequiereSeguimiento)
+                            { <span class="badge bg-warning text-dark">Sí</span> }
+                            else { <span class="text-muted">No</span> }
+                        </dd>
+
+                        @if (!string.IsNullOrEmpty(Model.ObservacionesAdministrativas))
+                        {
+                            <dt class="col-sm-4">Observaciones</dt>
+                            <dd class="col-sm-8 text-muted">@Model.ObservacionesAdministrativas</dd>
+                        }
+
+                        <dt class="col-sm-4">Fecha de registro</dt>
+                        <dd class="col-sm-8">@(Model.Fecha?.ToString("dd/MM/yyyy HH:mm") ?? "—")</dd>
+                    </dl>
+
+                    <hr>
+
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fa fa-user-check text-primary"></i>
+                        <strong>Confirmación electrónica del estudiante:</strong>
+                        @if (confirmacion is not null && confirmacion.Confirmada)
+                        {
+                            <span class="badge-pill badge-confirmada">
+                                Confirmada el @confirmacion.FechaConfirmacion.ToString("dd/MM/yyyy HH:mm")
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge-pill badge-pendiente">Sin confirmar</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

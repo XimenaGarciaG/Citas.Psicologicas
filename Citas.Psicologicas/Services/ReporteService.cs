@@ -15,14 +15,74 @@ public class ReporteService : BaseApiService, IReporteService
     /// <inheritdoc/>
     public async Task<ApiResponse<List<ReporteAsistenciaDto>>> GetAsistenciaAsync(
         DateTime inicio, DateTime fin, string token)
-        => await GetAsync<List<ReporteAsistenciaDto>>(
+    {
+        var result = await GetAsync<ReporteRespuestaDto>(
             $"{ApiRoutes.ReportesAsistencia}?inicio={inicio:yyyy-MM-dd}&fin={fin:yyyy-MM-dd}", token);
+
+        if (!result.Success)
+            return ApiResponseHelper.Fail<List<ReporteAsistenciaDto>>(result.Message!, result.StatusCode);
+
+        return ApiResponseHelper.Ok(MapAsistencia(result.Data?.Detalle ?? []));
+    }
 
     /// <inheritdoc/>
     public async Task<ApiResponse<List<ReporteInasistenciaDto>>> GetInasistenciaAsync(
         DateTime inicio, DateTime fin, string token)
-        => await GetAsync<List<ReporteInasistenciaDto>>(
+    {
+        var result = await GetAsync<ReporteRespuestaDto>(
             $"{ApiRoutes.ReportesInasistencia}?inicio={inicio:yyyy-MM-dd}&fin={fin:yyyy-MM-dd}", token);
+
+        if (!result.Success)
+            return ApiResponseHelper.Fail<List<ReporteInasistenciaDto>>(result.Message!, result.StatusCode);
+
+        return ApiResponseHelper.Ok(MapInasistencia(result.Data?.Detalle ?? []));
+    }
+
+    /// <summary>Mapea el detalle del wrapper a la lista de asistencia</summary>
+    private static List<ReporteAsistenciaDto> MapAsistencia(List<ReporteDetalleItemDto> detalle)
+    {
+        var list = new List<ReporteAsistenciaDto>(detalle.Count);
+        foreach (var d in detalle)
+        {
+            list.Add(new ReporteAsistenciaDto
+            {
+                IdBitacora = d.IdBitacora,
+                IdCita = d.IdCita,
+                Fecha = d.Fecha,
+                Observaciones = d.Observaciones,
+                NombreEstudiante = d.NombreEstudiante,
+                NumeroControl = d.NumeroControl,
+                Carrera = d.Carrera,
+                NombrePsicologo = d.NombrePsicologo,
+                HoraInicio = d.HoraInicio,
+                Asistio = d.Asistio
+            });
+        }
+        return list;
+    }
+
+    /// <summary>Mapea el detalle del wrapper a la lista de inasistencias</summary>
+    private static List<ReporteInasistenciaDto> MapInasistencia(List<ReporteDetalleItemDto> detalle)
+    {
+        var list = new List<ReporteInasistenciaDto>(detalle.Count);
+        foreach (var d in detalle)
+        {
+            list.Add(new ReporteInasistenciaDto
+            {
+                IdBitacora = d.IdBitacora,
+                IdCita = d.IdCita,
+                Fecha = d.Fecha,
+                Observaciones = d.Observaciones,
+                NombreEstudiante = d.NombreEstudiante,
+                NumeroControl = d.NumeroControl,
+                Carrera = d.Carrera,
+                NombrePsicologo = d.NombrePsicologo,
+                HoraInicio = d.HoraInicio,
+                Asistio = d.Asistio
+            });
+        }
+        return list;
+    }
 
     /// <summary>Exporta el reporte de asistencia a Excel usando ClosedXML</summary>
     public async Task<byte[]> ExportarExcelAsistenciaAsync(List<ReporteAsistenciaDto> datos)

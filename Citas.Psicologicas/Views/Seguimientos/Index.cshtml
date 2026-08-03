@@ -1,0 +1,85 @@
+@model List<Citas.Psicologicas.Models.SeguimientoRegistro>
+@{
+    ViewBag.PageTitle = "Seguimientos";
+    var estado = ViewBag.Estado as string;
+}
+
+<div class="animate-fade-up">
+    <div class="page-header">
+        <div>
+            <h1 class="page-header-title"><i class="fa fa-list-check me-2"></i>Seguimientos</h1>
+            <p class="page-header-subtitle">Seguimientos derivados de la bitácora y registros programados</p>
+        </div>
+        @{
+            var rolSesion = Context.Session.GetString("Rol") ?? "";
+        }
+        @if (rolSesion == Roles.Psicologo || rolSesion == Roles.Administrador)
+        {
+            <a href="/Seguimientos/Create" class="btn btn-primary"><i class="fa fa-plus me-1"></i> Nuevo seguimiento</a>
+        }
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body py-2">
+            <form method="get" class="d-flex gap-2 align-items-center">
+                <label class="form-label mb-0 small fw-600">Estado:</label>
+                <select name="estado" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
+                    <option value="">Todos</option>
+                    <option value="Pendientes" selected="@(estado == "Pendientes")">Pendientes</option>
+                    <option value="Programados" selected="@(estado == "Programados")">Programados</option>
+                </select>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title"><i class="fa fa-list me-1"></i>Registros</h2>
+        </div>
+        <div class="table-responsive">
+            @if (!Model.Any())
+            {
+                <div class="empty-state">
+                    <i class="fa fa-check-double empty-state-icon"></i>
+                    <div class="empty-state-title">Sin seguimientos</div>
+                    <p class="empty-state-text">No hay seguimientos registrados.</p>
+                </div>
+            }
+            else
+            {
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Fecha registro</th>
+                            <th>Estudiante</th>
+                            <th>Motivo</th>
+                            <th>Estado</th>
+                            <th>Fecha programada</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in Model)
+                        {
+                            <tr>
+                                <td class="text-nowrap">@s.FechaRegistro.ToString("dd/MM/yyyy")</td>
+                                <td class="fw-600">@s.NombreEstudiante</td>
+                                <td class="text-muted">@(s.Motivo ?? "—")</td>
+                                <td>
+                                    @if (s.Programado && s.FechaProgramada is not null)
+                                    {
+                                        <span class="badge-pill badge-confirmada">Programado</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge-pill badge-pendiente">Pendiente</span>
+                                    }
+                                </td>
+                                <td>@(s.FechaProgramada?.ToString("dd/MM/yyyy") ?? "—")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+</div>

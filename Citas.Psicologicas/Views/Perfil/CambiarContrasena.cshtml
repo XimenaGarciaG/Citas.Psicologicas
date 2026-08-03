@@ -1,0 +1,72 @@
+@model Citas.Psicologicas.ViewModels.Perfil.CambiarContrasenaViewModel
+@{
+    ViewBag.PageTitle = "Cambiar Contraseña";
+}
+
+<div class="animate-fade-up">
+    <div class="page-header">
+        <div>
+            <h1 class="page-header-title"><i class="fa fa-key me-2"></i>Cambiar Contraseña</h1>
+            <p class="page-header-subtitle">Actualice la contraseña de su cuenta</p>
+        </div>
+        <a href="/Perfil" class="btn btn-light"><i class="fa fa-arrow-left me-1"></i> Regresar</a>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Nueva contraseña</h2>
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrEmpty(Model.SuccessMessage))
+                    {
+                        <div class="alert alert-success d-flex align-items-center gap-2 mb-4">
+                            <i class="fa fa-check-circle"></i> @Model.SuccessMessage
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+                    {
+                        <div class="alert alert-danger d-flex align-items-center gap-2 mb-4">
+                            <i class="fa fa-exclamation-triangle"></i> @Model.ErrorMessage
+                        </div>
+                    }
+
+                    <form asp-controller="Perfil" asp-action="CambiarContrasena" method="post">
+                        @Html.AntiForgeryToken()
+
+                        <div class="mb-3">
+                            <label asp-for="NuevaContrasena" class="form-label"></label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fa fa-lock"></i></span>
+                                <input asp-for="NuevaContrasena" class="form-control" autocomplete="new-password">
+                            </div>
+                            <span asp-validation-for="NuevaContrasena" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-4">
+                            <label asp-for="ConfirmarContrasena" class="form-label"></label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fa fa-lock-check"></i></span>
+                                <input asp-for="ConfirmarContrasena" class="form-control" autocomplete="new-password">
+                            </div>
+                            <span asp-validation-for="ConfirmarContrasena" class="text-danger small"></span>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="/Perfil" class="btn btn-light px-4">Cancelar</a>
+                            <button type="submit" class="btn btn-primary px-4">
+                                <i class="fa fa-save me-1"></i> Actualizar contraseña
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -93,14 +93,15 @@
                 </div>
             </div>
 
-            <!-- Tipo de cuenta / Rol -->
+            <!-- Tipo de cuenta / Rol (fijo: estudiante) -->
+            <input type="hidden" asp-for="Rol" value="@Roles.Estudiante">
             <div class="mb-3">
-                <label asp-for="Rol" class="form-label"></label>
-                <select asp-for="Rol" class="form-select" id="selectRegRol" onchange="actualizarCamposPorRol()">
-                    <option value="@Roles.Estudiante">Estudiante</option>
-                    <option value="@Roles.Tutor">Tutor</option>
-                </select>
-                <span asp-validation-for="Rol" class="text-danger small"></span>
+                <label class="form-label">Tipo de cuenta</label>
+                <div class="p-3 bg-light rounded-3 border d-flex align-items-center gap-2">
+                    <i class="fa fa-graduation-cap text-primary"></i>
+                    <span class="fw-600">Estudiante</span>
+                    <span class="text-muted small ms-auto">Las cuentas de personal son creadas por la administración.</span>
+                </div>
             </div>
 
             <!-- Seccion Estudiante -->
@@ -113,7 +114,13 @@
                     </div>
                     <div class="col-md-6 mb-2">
                         <label asp-for="Carrera" class="form-label small"></label>
-                        <input asp-for="Carrera" class="form-control form-control-sm" placeholder="Ej. Ing. Sistemas">
+                        <select asp-for="Carrera" class="form-select form-select-sm">
+                            <option value="">-- Seleccione una carrera --</option>
+                            @foreach (var c in Model.CarrerasDisponibles)
+                            {
+                                <option value="@c" selected="@(Model.Carrera == c)">@c</option>
+                            }
+                        </select>
                     </div>
                     <div class="col-md-4 mb-2">
                         <label asp-for="Cuatrimestre" class="form-label small"></label>
@@ -129,24 +136,6 @@
                             <label class="form-check-label small" for="chkRegular">Es Regular</label>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <!-- Seccion Tutor -->
-            <div id="seccionTutor" class="p-3 bg-light rounded-3 mb-3 border" style="display:none;">
-                <div class="fw-600 text-primary mb-2 small"><i class="fa fa-chalkboard-user me-1"></i> Datos de Tutor</div>
-                <div class="mb-2">
-                    <label asp-for="Departamento" class="form-label small"></label>
-                    <input asp-for="Departamento" class="form-control form-control-sm" placeholder="Ej. División de Tecnologías de la Información">
-                </div>
-            </div>
-
-            <!-- Seccion Psicologo -->
-            <div id="seccionPsicologo" class="p-3 bg-light rounded-3 mb-3 border" style="display:none;">
-                <div class="fw-600 text-primary mb-2 small"><i class="fa fa-user-doctor me-1"></i> Datos del Profesional</div>
-                <div class="mb-2">
-                    <label asp-for="CedulaProfesional" class="form-label small"></label>
-                    <input asp-for="CedulaProfesional" class="form-control form-control-sm" placeholder="Ej. 12345678">
                 </div>
             </div>
 
@@ -170,13 +159,6 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script>
-        function actualizarCamposPorRol() {
-            const rol = document.getElementById('selectRegRol').value;
-            document.getElementById('seccionEstudiante').style.display = (rol === 'ESTUDIANTE') ? 'block' : 'none';
-            document.getElementById('seccionTutor').style.display      = (rol === 'TUTOR') ? 'block' : 'none';
-            document.getElementById('seccionPsicologo').style.display  = (rol === 'PSICOLOGO') ? 'block' : 'none';
-        }
-
         document.getElementById('btnRegisterSubmit').addEventListener('click', function() {
             if ($('#formRegister').valid()) {
                 this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Registrando cuenta...';

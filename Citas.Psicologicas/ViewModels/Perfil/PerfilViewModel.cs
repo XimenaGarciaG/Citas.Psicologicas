@@ -1,22 +1,16 @@
-using System.Text.Json.Serialization;
 using Citas.Psicologicas.Constants;
 
-namespace Citas.Psicologicas.DTOs.Usuarios;
+namespace Citas.Psicologicas.ViewModels.Perfil;
 
-/// <summary>DTO de lectura para usuarios devuelto por la API REST</summary>
-public class UsuarioDto
+/// <summary>ViewModel con los datos personales del usuario autenticado</summary>
+public class PerfilViewModel
 {
-    [JsonPropertyName("idUsuario")]
-    public object? IdUsuario { get; set; }
-
+    public string Id { get; set; } = string.Empty;
+    public string NombreCompleto { get; set; } = string.Empty;
     public string Correo { get; set; } = string.Empty;
     public string Rol { get; set; } = string.Empty;
-    public object? Estatus { get; set; } = "ACTIVO";
     public DateTime? FechaCreacion { get; set; }
-    public string NombreCompleto { get; set; } = string.Empty;
-    public string? DetalleAdicional { get; set; }
 
-    // Campos detallados (GET /api/Usuarios/{id})
     public string? Matricula { get; set; }
     public string? Carrera { get; set; }
     public int? Cuatrimestre { get; set; }
@@ -25,14 +19,8 @@ public class UsuarioDto
     public string? Departamento { get; set; }
     public string? CedulaProfesional { get; set; }
 
-    public string Id => IdUsuario?.ToString() ?? "";
-    public string Nombre => NombreCompleto;
-    public bool Activo => Estatus switch
-    {
-        bool b => b,
-        string s => s.ToUpper() is "ACTIVO" or "TRUE" or "ACTIVE",
-        _ => true
-    };
+    public bool Activo { get; set; } = true;
+
     public string RolLabel => Roles.GetLabel(Rol);
     public string Iniciales
     {

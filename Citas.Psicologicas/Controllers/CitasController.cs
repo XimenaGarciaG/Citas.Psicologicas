@@ -3,6 +3,7 @@ using Citas.Psicologicas.DTOs.Citas;
 using Citas.Psicologicas.Filters;
 using Citas.Psicologicas.Helpers;
 using Citas.Psicologicas.Interfaces;
+using Citas.Psicologicas.Models;
 using Citas.Psicologicas.ViewModels.Citas;
 using Microsoft.AspNetCore.Mvc;
 
@@ -15,17 +16,20 @@ public class CitasController : Controller
     private readonly ICitaService _citaService;
     private readonly ISolicitudService _solicitudService;
     private readonly IUsuarioService _usuarioService;
+    private readonly ILocalDataService _localData;
     private readonly ILogger<CitasController> _logger;
 
     public CitasController(
         ICitaService citaService,
         ISolicitudService solicitudService,
         IUsuarioService usuarioService,
+        ILocalDataService localData,
         ILogger<CitasController> logger)
     {
         _citaService = citaService;
         _solicitudService = solicitudService;
         _usuarioService = usuarioService;
+        _localData = localData;
         _logger = logger;
     }
 
@@ -80,11 +84,21 @@ public class CitasController : Controller
         return View(vm);
     }
 
-    // GET: /Citas/Create
+    // GET: /Citas/Agenda  (calendario día/semana/mes de la psicóloga)
+    public async Task<IActionResult> Agenda(string? estado)
+    {
+        ViewBag.PageTitle = "Agenda";
+        ViewBag.Breadcrumb = new[] { ("Agenda", "/Citas/Agenda") };
+        return await Index(estado, null, null, null, "Calendario");
+    }
+
+    // GET: /Citas/Create  (idSolicitud: pre-selecciona la solicitud desde Bandeja/Detalle)
     [AuthorizeRole(Roles.Administrador, Roles.Psicologo)]
-    public async Task<IActionResult> Create()
+    public async Task<IActionResult> Create(string? idSolicitud)
     {
         var vm = await CargarDatosCitaAsync();
+        if (!string.IsNullOrEmpty(idSolicitud))
+            vm.IdSolicitud = idSolicitud;
         ViewBag.PageTitle = "Agendar Cita";
         return View(vm);
     }
@@ -121,6 +135,22 @@ public class CitasController : Controller
         var result = await _citaService.CreateAsync(dto, token);
         if (result.Success)
         {
+            var solicitud = (await _solicitudService.GetAllAsync(token)).Data?
+                .FirstOrDefault(s => string.Equals(s.Id, model.IdSolicitud, StringComparison.OrdinalIgnoreCase));
+            var psicologo = (await _usuarioService.GetAllAsync(token)).Data?
+                .FirstOrDefault(u => string.Equals(u.Id, model.IdPsicologo, StringComparison.OrdinalIgnoreCase));
+
+            RegistrarNotificacion(new Models.NotificacionRegistro
+            {
+                Tipo = "Confirmacion",
+                IdEstudiante = solicitud?.IdEstudianteStr ?? string.Empty,
+                NombreEstudiante = solicitud?.NombreEstudiante ?? string.Empty,
+                Asunto = "Cita psicológica agendada",
+                Cuerpo = $"Su cita del {model.FechaCita:dd/MM/yyyy} a las {model.HoraInicio} fue agendada con " +
+                         $"{psicologo?.NombreCompleto ?? "el psicólogo/a asignado"}.",
+                EnviadoPor = SessionHelper.GetNombreCompleto(HttpContext.Session) ?? string.Empty
+            });
+
             TempData["Success"] = "Cita agendada exitosamente.";
             return RedirectToAction(nameof(Index));
         }
@@ -142,14 +172,130 @@ public class CitasController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        var vm = new CitaDetalleViewModel { Cita = result.Data };
+        var rol = SessionHelper.GetRol(HttpContext.Session);
+        var idUsuario = SessionHelper.GetIdUsuario(HttpContext.Session);
+        var cita = result.Data;
+        var config = _localData.GetConfiguracion();
+
+        // Regla de acceso: el estudiante solo ve sus propias citas y el psicólogo las suyas.
+        if ((rol == Roles.Estudiante && !string.Equals(cita.IdEstudianteStr, idUsuario, StringComparison.OrdinalIgnoreCase)) ||
+            (rol == Roles.Psicologo && !string.Equals(cita.IdPsicologoStr, idUsuario, StringComparison.OrdinalIgnoreCase)))
+        {
+            TempData["Error"] = "No tiene permisos para ver esta cita.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var vm = new CitaDetalleViewModel { Cita = cita };
+
+        // Estado de la confirmación electrónica de asistencia (respaldo local)
+        var confirmacion = _localData.GetConfirmacion(cita.Id);
+        if (confirmacion is not null)
+        {
+            vm.AsistenciaConfirmada = confirmacion.Confirmada;
+            vm.FechaConfirmacion = confirmacion.FechaConfirmacion;
+        }
+
+        // ¿El estudiante puede cancelar su propia cita? Solo dentro de la ventana configurada.
+        if (rol == Roles.Estudiante && string.Equals(cita.IdEstudianteStr, idUsuario, StringComparison.OrdinalIgnoreCase))
+        {
+            vm.PuedeCancelarEstudiante =
+                cita.Estado is EstadosCita.Reservada or EstadosCita.Confirmada &&
+                cita.Fecha > DateTime.Now.AddHours(config.VentanaCancelacionHoras);
+
+            vm.PuedeConfirmarAsistencia = EsConfirmable(cita, config) && !vm.AsistenciaConfirmada;
+        }
+
         ViewBag.PageTitle = "Detalle de Cita";
         return View(vm);
+    }
+
+    // GET: /Citas/Disponibilidad  (estudiante: horarios libres para solicitar cita)
+    [AuthorizeRole(Roles.Estudiante)]
+    public async Task<IActionResult> Disponibilidad(DateTime? fecha)
+    {
+        var token = SessionHelper.GetToken(HttpContext.Session)!;
+        var dia = fecha ?? DateTime.Today;
+        var config = _localData.GetConfiguracion();
+
+        var citasResult = await _citaService.GetAllAsync(token);
+        var citasDia = (citasResult.Data ?? [])
+            .Where(c => c.FechaCita?.Date == dia.Date)
+            .ToList();
+
+        var horarios = GenerarHorarios(config.HorarioInicio, config.HorarioFin, config.DuracionCitaMin);
+
+        foreach (var h in horarios)
+        {
+            var ocupada = citasDia.FirstOrDefault(c =>
+                string.CompareOrdinal(NormalizarHora(c.HoraInicio), NormalizarHora(h.HoraInicio)) == 0 &&
+                (c.Estado != EstadosCita.Cancelada));
+            if (ocupada is not null)
+            {
+                h.Ocupado = true;
+                h.IdCita = ocupada.Id;
+                h.EstadoOcupado = ocupada.Estado;
+            }
+        }
+
+        var vm = new DisponibilidadViewModel
+        {
+            Fecha = dia,
+            FechaLabel = dia.ToString("dddd, dd 'de' MMMM 'de' yyyy", new System.Globalization.CultureInfo("es-MX")),
+            Horarios = horarios
+        };
+
+        ViewBag.PageTitle = "Disponibilidad";
+        return View(vm);
+    }
+
+    // POST: /Citas/ConfirmarAsistencia/{id}
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [AuthorizeRole(Roles.Estudiante)]
+    public async Task<IActionResult> ConfirmarAsistencia(string id)
+    {
+        var token = SessionHelper.GetToken(HttpContext.Session)!;
+        var idEstudiante = SessionHelper.GetIdUsuario(HttpContext.Session);
+
+        var result = await _citaService.GetByIdAsync(id, token);
+        if (!result.Success || result.Data is null)
+        {
+            TempData["Error"] = "Cita no encontrada.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var cita = result.Data;
+        if (!string.Equals(cita.IdEstudianteStr, idEstudiante, StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["Error"] = "No puede confirmar la asistencia de una cita que no le pertenece.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        var config = _localData.GetConfiguracion();
+        if (!EsConfirmable(cita, config))
+        {
+            TempData["Error"] = "No es posible confirmar la asistencia en este momento.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        // La confirmación se sincroniza con la bitácora administrativa (respaldo local).
+        _localData.SetConfirmacion(new ConfirmacionAsistencia
+        {
+            IdCita = cita.Id,
+            IdEstudiante = idEstudiante ?? string.Empty,
+            Confirmada = true,
+            FechaConfirmacion = DateTime.Now
+        });
+
+        _logger.LogInformation("Estudiante {Id} confirmó asistencia de la cita {Cita}", idEstudiante, id);
+        TempData["Success"] = "Asistencia confirmada. Su confirmación quedó sincronizada con la bitácora.";
+        return RedirectToAction(nameof(Details), new { id });
     }
 
     // POST: /Citas/Confirmar/{id}
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [AuthorizeRole(Roles.Administrador, Roles.Psicologo)]
     public async Task<IActionResult> Confirmar(string id)
     {
         var token = SessionHelper.GetToken(HttpContext.Session)!;
@@ -165,9 +311,52 @@ public class CitasController : Controller
     public async Task<IActionResult> Cancelar(string id)
     {
         var token = SessionHelper.GetToken(HttpContext.Session)!;
-        var result = await _citaService.CancelarAsync(id, token);
-        TempData[result.Success ? "Success" : "Error"] =
-            result.Success ? "Cita cancelada." : (result.Message ?? "No se pudo cancelar la cita.");
+        var rol = SessionHelper.GetRol(HttpContext.Session);
+        var idUsuario = SessionHelper.GetIdUsuario(HttpContext.Session);
+
+        // Regla de negocio: el estudiante solo puede cancelar sus propias citas dentro de la ventana.
+        if (rol == Roles.Estudiante)
+        {
+            var result = await _citaService.GetByIdAsync(id, token);
+            if (!result.Success || result.Data is null)
+            {
+                TempData["Error"] = "Cita no encontrada.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var cita = result.Data;
+            var config = _localData.GetConfiguracion();
+            if (!string.Equals(cita.IdEstudianteStr, idUsuario, StringComparison.OrdinalIgnoreCase) ||
+                !(cita.Estado is EstadosCita.Reservada or EstadosCita.Confirmada) ||
+                cita.Fecha <= DateTime.Now.AddHours(config.VentanaCancelacionHoras))
+            {
+                TempData["Error"] = "No es posible cancelar esta cita. Verifique las reglas de cancelación.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+        }
+
+        var resultCancelar = await _citaService.CancelarAsync(id, token);
+        if (resultCancelar.Success)
+        {
+            var citaCancelada = (await _citaService.GetByIdAsync(id, token)).Data;
+            if (citaCancelada is not null)
+            {
+                RegistrarNotificacion(new Models.NotificacionRegistro
+                {
+                    Tipo = "Cancelacion",
+                    IdEstudiante = citaCancelada.IdEstudianteStr,
+                    NombreEstudiante = citaCancelada.NombreEstudiante ?? string.Empty,
+                    Asunto = "Cita cancelada",
+                    Cuerpo = $"Su cita del {citaCancelada.Fecha:dd/MM/yyyy} a las {citaCancelada.HoraInicio} fue cancelada.",
+                    EnviadoPor = SessionHelper.GetNombreCompleto(HttpContext.Session) ?? string.Empty
+                });
+            }
+            TempData["Success"] = "Cita cancelada.";
+        }
+        else
+        {
+            TempData["Error"] = resultCancelar.Message ?? "No se pudo cancelar la cita.";
+        }
         return RedirectToAction(nameof(Index));
     }
 
@@ -238,5 +427,72 @@ public class CitasController : Controller
         var h = hora?.Trim();
         if (string.IsNullOrEmpty(h)) return string.Empty;
         return h.Length == 5 && h.Contains(':') ? $"{h}:00" : h;
+    }
+
+    /// <summary>Determina si la cita puede confirmarse electrónicamente por el estudiante</summary>
+    private static bool EsConfirmable(DTOs.Citas.CitaDto cita, Models.ConfiguracionSistema config)
+    {
+        if (cita.Estado == EstadosCita.Cancelada || cita.Estado == EstadosCita.Reagendada)
+            return false;
+
+        if (cita.Estado == EstadosCita.Concluida)
+            return true;
+
+        // Si la hora de fin no es válida no es posible calcular la ventana de confirmación.
+        if (!TimeSpan.TryParse(FormatearHora(cita.HoraFin), out var horaFin))
+            return false;
+
+        var fin = cita.Fecha.Date.Add(horaFin);
+        var limite = fin.AddHours(config.VentanaConfirmacionHoras);
+        return DateTime.Now >= fin && DateTime.Now <= limite;
+    }
+
+    /// <summary>Genera la rejilla de horarios según configuración</summary>
+    private static List<HorarioDisponible> GenerarHorarios(string inicio, string fin, int duracionMin)
+    {
+        var horarios = new List<HorarioDisponible>();
+        if (!TimeSpan.TryParse(inicio, out var horaInicio) ||
+            !TimeSpan.TryParse(fin, out var horaFin) ||
+            duracionMin <= 0)
+        {
+            return horarios;
+        }
+
+        for (var t = horaInicio; t < horaFin; t = t.Add(TimeSpan.FromMinutes(duracionMin)))
+        {
+            var end = t.Add(TimeSpan.FromMinutes(duracionMin));
+            if (end > horaFin) break;
+            horarios.Add(new HorarioDisponible
+            {
+                HoraInicio = t.ToString(@"hh\:mm"),
+                HoraFin = end.ToString(@"hh\:mm")
+            });
+        }
+
+        return horarios;
+    }
+
+    /// <summary>Normaliza una hora para comparar ("HH:mm" u "HH:mm:ss")</summary>
+    private static string NormalizarHora(string hora)
+    {
+        if (string.IsNullOrWhiteSpace(hora)) return string.Empty;
+        var h = hora.Trim();
+        if (TimeSpan.TryParse(h, out var ts))
+            return ts.ToString(@"hh\:mm");
+        return h;
+    }
+
+    /// <summary>Registra una notificación en el historial local (respaldo de envío de correos)</summary>
+    private void RegistrarNotificacion(Models.NotificacionRegistro notificacion)
+    {
+        try
+        {
+            notificacion.Fecha = DateTime.Now;
+            _localData.AddNotificacion(notificacion);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "No se pudo registrar la notificación localmente.");
+        }
     }
 }

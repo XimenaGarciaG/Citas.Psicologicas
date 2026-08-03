@@ -9,7 +9,15 @@
         <div>
             <h1 class="page-header-title"><i class="fa fa-file-medical me-2"></i>Detalle de Solicitud</h1>
         </div>
-        <a href="/Solicitudes" class="btn btn-light"><i class="fa fa-arrow-left me-1"></i> Regresar</a>
+        <div class="d-flex gap-2">
+            <a href="/Solicitudes" class="btn btn-light"><i class="fa fa-arrow-left me-1"></i> Regresar</a>
+            @if ((rol == Roles.Psicologo || rol == Roles.Administrador) && Model.Estado != EstadosSolicitud.Cancelada)
+            {
+                <a href="/Solicitudes/AsignarCita/@Model.Id" class="btn btn-primary">
+                    <i class="fa fa-calendar-plus me-1"></i> Asignar cita
+                </a>
+            }
+        </div>
     </div>
 
     <div class="row g-3">

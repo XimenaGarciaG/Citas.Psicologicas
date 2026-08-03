@@ -30,6 +30,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDashboardService, DashboardService>();
         services.AddScoped<IReporteService, ReporteService>();
 
+        services.AddScoped<ILocalDataService, LocalDataService>();
+
         return services;
     }
 

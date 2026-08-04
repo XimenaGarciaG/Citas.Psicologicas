@@ -93,8 +93,8 @@ public class CanalizacionesController : Controller
 
         var dto = new CreateCanalizacionDto
         {
-            IdEstudiante = model.IdEstudiante,
-            IdTutor = SessionHelper.GetIdUsuario(HttpContext.Session) ?? model.IdTutor,
+            IdEstudiante = int.TryParse(model.IdEstudiante, out var idEst) ? idEst : 0,
+            IdTutor = int.TryParse(SessionHelper.GetIdUsuario(HttpContext.Session) ?? model.IdTutor, out var idTutor) ? idTutor : 0,
             MotivoCanalizacion = model.Motivo,
             Observaciones = model.Observaciones ?? ""
         };

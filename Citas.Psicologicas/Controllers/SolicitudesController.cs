@@ -3,6 +3,7 @@ using Citas.Psicologicas.DTOs.Solicitudes;
 using Citas.Psicologicas.Filters;
 using Citas.Psicologicas.Helpers;
 using Citas.Psicologicas.Interfaces;
+using Citas.Psicologicas.Models;
 using Citas.Psicologicas.ViewModels.Solicitudes;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,11 +14,16 @@ namespace Citas.Psicologicas.Controllers;
 public class SolicitudesController : Controller
 {
     private readonly ISolicitudService _solicitudService;
+    private readonly ILocalDataService _localData;
     private readonly ILogger<SolicitudesController> _logger;
 
-    public SolicitudesController(ISolicitudService solicitudService, ILogger<SolicitudesController> logger)
+    public SolicitudesController(
+        ISolicitudService solicitudService,
+        ILocalDataService localData,
+        ILogger<SolicitudesController> logger)
     {
         _solicitudService = solicitudService;
+        _localData = localData;
         _logger = logger;
     }
 
@@ -83,16 +89,38 @@ public class SolicitudesController : Controller
         };
 
         ViewBag.PageTitle = "Solicitudes de Atención";
+        ViewBag.SolicitudesCalendario = null;
+
+        // La psicóloga ve las solicitudes directas del calendario que le fueron asignadas.
+        var rolSesion = SessionHelper.GetRol(HttpContext.Session);
+        if (rolSesion == Roles.Psicologo || rolSesion == Roles.Administrador)
+        {
+            var pendientes = _localData.GetSolicitudesCalendarioPendientes();
+            if (rolSesion == Roles.Psicologo)
+            {
+                var idPsicologo = SessionHelper.GetIdUsuario(HttpContext.Session);
+                pendientes = pendientes
+                    .Where(sc => string.Equals(sc.IdPsicologo, idPsicologo, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+            ViewBag.SolicitudesCalendario = pendientes;
+        }
+
         return View(vm);
     }
 
-    // GET: /Solicitudes/Create
+    // GET: /Solicitudes/Create  (parámetros opcionales desde el calendario de disponibilidad)
     [AuthorizeRole(Roles.Estudiante)]
-    public IActionResult Create()
+    public IActionResult Create(string? idPsicologo, string? nombrePsicologo, string? fechaCita, string? horaInicio, string? horaFin)
     {
         var vm = new SolicitudCreateViewModel
         {
-            IdEstudiante = SessionHelper.GetIdUsuario(HttpContext.Session) ?? string.Empty
+            IdEstudiante = SessionHelper.GetIdUsuario(HttpContext.Session) ?? string.Empty,
+            IdPsicologo = idPsicologo ?? string.Empty,
+            NombrePsicologo = nombrePsicologo ?? string.Empty,
+            FechaCita = DateTime.TryParse(fechaCita, out var fc) ? fc : null,
+            HoraInicio = horaInicio ?? string.Empty,
+            HoraFin = horaFin ?? string.Empty
         };
         ViewBag.PageTitle = "Nueva Solicitud";
         return View(vm);
@@ -110,19 +138,47 @@ public class SolicitudesController : Controller
         var token = SessionHelper.GetToken(HttpContext.Session)!;
         var dto = new CreateSolicitudDto
         {
-            IdEstudiante = SessionHelper.GetIdUsuario(HttpContext.Session) ?? string.Empty,
+            IdEstudiante = int.TryParse(SessionHelper.GetIdUsuario(HttpContext.Session), out var idEst) ? idEst : 0,
+            Origen = OrigenSolicitud.Autonomo,
             MotivoConsulta = model.Comentario ?? string.Empty
         };
 
         var result = await _solicitudService.CreateAsync(dto, token);
         if (result.Success)
         {
+            // Solicitud directa del calendario: se dirige a la psicóloga del horario elegido.
+            if (model.DesdeCalendario && model.FechaCita.HasValue)
+            {
+                _localData.AddSolicitudCalendario(new SolicitudCalendario
+                {
+                    IdSolicitud = result.Data?.Id ?? string.Empty,
+                    IdEstudiante = SessionHelper.GetIdUsuario(HttpContext.Session) ?? string.Empty,
+                    NombreEstudiante = SessionHelper.GetNombreCompleto(HttpContext.Session) ?? string.Empty,
+                    IdPsicologo = model.IdPsicologo,
+                    NombrePsicologo = model.NombrePsicologo,
+                    FechaCita = model.FechaCita.Value,
+                    HoraInicio = model.HoraInicio,
+                    HoraFin = model.HoraFin
+                });
+            }
+
             TempData["Success"] = "Solicitud enviada exitosamente. Se le notificará cuando sea atendida.";
             return RedirectToAction(nameof(Index));
         }
 
         TempData["Error"] = result.Message ?? "No se pudo enviar la solicitud.";
         return View(model);
+    }
+
+    // POST: /Solicitudes/MarcarAtendida/{id}  (solicitud directa del calendario)
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [AuthorizeRole(Roles.Psicologo, Roles.Administrador)]
+    public IActionResult MarcarAtendida(int id)
+    {
+        _localData.MarcarSolicitudCalendarioAtendida(id);
+        TempData["Success"] = "Solicitud de calendario marcada como atendida.";
+        return RedirectToAction(nameof(Index));
     }
 
     // GET: /Solicitudes/Details/{id}

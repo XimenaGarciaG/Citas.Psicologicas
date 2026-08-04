@@ -11,4 +11,13 @@ public class SolicitudCreateViewModel
     [Display(Name = "Comentario (Opcional)")]
     [DataType(DataType.MultilineText)]
     public string? Comentario { get; set; }
+
+    // Datos de la solicitud directa desde el calendario de disponibilidad
+    public string IdPsicologo { get; set; } = string.Empty;
+    public string NombrePsicologo { get; set; } = string.Empty;
+    public DateTime? FechaCita { get; set; }
+    public string HoraInicio { get; set; } = string.Empty;
+    public string HoraFin { get; set; } = string.Empty;
+
+    public bool DesdeCalendario => !string.IsNullOrEmpty(IdPsicologo);
 }

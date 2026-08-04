@@ -1,3 +1,4 @@
+using Citas.Psicologicas.Constants;
 using System.Text.Json.Serialization;
 
 namespace Citas.Psicologicas.DTOs.Solicitudes;
@@ -13,7 +14,7 @@ public class SolicitudDto
 
     public string? NombreEstudiante { get; set; }
     public string? MatriculaEstudiante { get; set; }
-    public string Origen { get; set; } = "ESTUDIANTE";
+    public string Origen { get; set; } = OrigenSolicitud.Autonomo;
     public string MotivoConsulta { get; set; } = string.Empty;
     public string Prioridad { get; set; } = "BAJA";
     public int PuntuacionTriage { get; set; }

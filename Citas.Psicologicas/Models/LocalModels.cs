@@ -62,3 +62,32 @@ public class ConfirmacionAsistencia
     public bool Confirmada { get; set; }
     public DateTime FechaConfirmacion { get; set; }
 }
+
+/// <summary>Bloqueo de disponibilidad de una psicóloga para un horario específico (respaldo local)</summary>
+public class BloqueoDisponibilidad
+{
+    public int Id { get; set; }
+    public string IdPsicologo { get; set; } = string.Empty;
+    public string NombrePsicologo { get; set; } = string.Empty;
+    public DateTime Fecha { get; set; }
+    public string HoraInicio { get; set; } = string.Empty;
+    public string HoraFin { get; set; } = string.Empty;
+    public string? Motivo { get; set; }
+    public DateTime FechaRegistro { get; set; } = DateTime.Now;
+}
+
+/// <summary>Solicitud generada desde el calendario de disponibilidad hacia una psicóloga concreta</summary>
+public class SolicitudCalendario
+{
+    public int Id { get; set; }
+    public string IdSolicitud { get; set; } = string.Empty;
+    public string IdEstudiante { get; set; } = string.Empty;
+    public string NombreEstudiante { get; set; } = string.Empty;
+    public string IdPsicologo { get; set; } = string.Empty;
+    public string NombrePsicologo { get; set; } = string.Empty;
+    public DateTime FechaCita { get; set; }
+    public string HoraInicio { get; set; } = string.Empty;
+    public string HoraFin { get; set; } = string.Empty;
+    public bool Atendida { get; set; }
+    public DateTime FechaRegistro { get; set; } = DateTime.Now;
+}

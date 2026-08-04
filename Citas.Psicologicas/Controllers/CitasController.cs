@@ -124,8 +124,8 @@ public class CitasController : Controller
         var token = SessionHelper.GetToken(HttpContext.Session)!;
         var dto = new CreateCitaDto
         {
-            IdSolicitud = model.IdSolicitud,
-            IdPsicologo = model.IdPsicologo,
+            IdSolicitud = int.TryParse(model.IdSolicitud, out var idSol) ? idSol : 0,
+            IdPsicologo = int.TryParse(model.IdPsicologo, out var idPsi) ? idPsi : 0,
             FechaCita = model.FechaCita.ToString("yyyy-MM-dd"),
             HoraInicio = FormatearHora(model.HoraInicio),
             HoraFin = FormatearHora(model.HoraFin),
@@ -209,7 +209,7 @@ public class CitasController : Controller
         return View(vm);
     }
 
-    // GET: /Citas/Disponibilidad  (estudiante: horarios libres para solicitar cita)
+    // GET: /Citas/Disponibilidad  (estudiante: horarios libres y psicólogas disponibles)
     [AuthorizeRole(Roles.Estudiante)]
     public async Task<IActionResult> Disponibilidad(DateTime? fecha)
     {
@@ -217,24 +217,58 @@ public class CitasController : Controller
         var dia = fecha ?? DateTime.Today;
         var config = _localData.GetConfiguracion();
 
-        var citasResult = await _citaService.GetAllAsync(token);
-        var citasDia = (citasResult.Data ?? [])
+        var citasTask = _citaService.GetAllAsync(token);
+        var usuariosTask = _usuarioService.GetAllAsync(token);
+        await Task.WhenAll(citasTask, usuariosTask);
+
+        var citasDia = (citasTask.Result.Data ?? [])
             .Where(c => c.FechaCita?.Date == dia.Date)
             .ToList();
 
+        var psicologas = usuariosTask.Result.Data
+            ?.Where(u => u.Rol == Roles.Psicologo)
+            .ToList() ?? [];
+
+        var bloqueos = _localData.GetBloqueos(dia);
         var horarios = GenerarHorarios(config.HorarioInicio, config.HorarioFin, config.DuracionCitaMin);
 
         foreach (var h in horarios)
         {
-            var ocupada = citasDia.FirstOrDefault(c =>
-                string.CompareOrdinal(NormalizarHora(c.HoraInicio), NormalizarHora(h.HoraInicio)) == 0 &&
-                (c.Estado != EstadosCita.Cancelada));
-            if (ocupada is not null)
+            var inicio = TimeSpan.Parse(h.HoraInicio);
+            var fin = TimeSpan.Parse(h.HoraFin);
+
+            // Psicólogas con cita (no cancelada) en este horario → ocupadas.
+            var citasSlot = citasDia.Where(c =>
+                c.Estado != EstadosCita.Cancelada &&
+                TimeSpan.TryParse(NormalizarHora(c.HoraInicio), out var hi) &&
+                TimeSpan.TryParse(NormalizarHora(c.HoraFin), out var hf) &&
+                hi < fin && hf > inicio).ToList();
+
+            var ocupadas = new List<PsicologoDisponible>();
+            foreach (var c in citasSlot)
             {
-                h.Ocupado = true;
-                h.IdCita = ocupada.Id;
-                h.EstadoOcupado = ocupada.Estado;
+                ocupadas.Add(new PsicologoDisponible { Id = c.IdPsicologoStr, Nombre = c.NombrePsicologo ?? "Psicóloga" });
             }
+
+            // Psicólogas con bloqueo que cubre este horario → no disponibles.
+            foreach (var b in bloqueos.Where(b =>
+                         TimeSpan.TryParse(b.HoraInicio, out var bi) && TimeSpan.TryParse(b.HoraFin, out var bf) &&
+                         bi < fin && bf > inicio))
+            {
+                ocupadas.Add(new PsicologoDisponible { Id = b.IdPsicologo, Nombre = b.NombrePsicologo });
+            }
+
+            // Disponibles = psicólogas sin cita y sin bloqueo en el horario.
+            var idsOcupadas = ocupadas.Select(p => p.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            h.PsicologosDisponibles = psicologas
+                .Where(p => !idsOcupadas.Contains(p.Id))
+                .Select(p => new PsicologoDisponible { Id = p.Id, Nombre = p.NombreCompleto })
+                .ToList();
+
+            h.PsicologosOcupados = ocupadas
+                .GroupBy(p => p.Id)
+                .Select(g => g.First())
+                .ToList();
         }
 
         var vm = new DisponibilidadViewModel
@@ -246,6 +280,94 @@ public class CitasController : Controller
 
         ViewBag.PageTitle = "Disponibilidad";
         return View(vm);
+    }
+
+    // GET: /Citas/MiDisponibilidad  (psicóloga: edita su calendario de atención)
+    [AuthorizeRole(Roles.Psicologo)]
+    public async Task<IActionResult> MiDisponibilidad(DateTime? fecha)
+    {
+        var token = SessionHelper.GetToken(HttpContext.Session)!;
+        var idPsicologo = SessionHelper.GetIdUsuario(HttpContext.Session)!;
+        var dia = fecha ?? DateTime.Today;
+        var config = _localData.GetConfiguracion();
+
+        var citasDia = (await _citaService.GetAllAsync(token)).Data?
+            .Where(c => c.FechaCita?.Date == dia.Date &&
+                        string.Equals(c.IdPsicologoStr, idPsicologo, StringComparison.OrdinalIgnoreCase) &&
+                        c.Estado != EstadosCita.Cancelada)
+            .ToList() ?? [];
+
+        var bloqueos = _localData.GetBloqueos(dia)
+            .Where(b => string.Equals(b.IdPsicologo, idPsicologo, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var horarios = GenerarHorarios(config.HorarioInicio, config.HorarioFin, config.DuracionCitaMin);
+        foreach (var h in horarios)
+        {
+            var inicio = TimeSpan.Parse(h.HoraInicio);
+            var fin = TimeSpan.Parse(h.HoraFin);
+
+            var cita = citasDia.FirstOrDefault(c =>
+                TimeSpan.TryParse(NormalizarHora(c.HoraInicio), out var hi) &&
+                TimeSpan.TryParse(NormalizarHora(c.HoraFin), out var hf) &&
+                hi < fin && hf > inicio);
+
+            var bloqueo = bloqueos.FirstOrDefault(b =>
+                TimeSpan.TryParse(b.HoraInicio, out var bi) &&
+                TimeSpan.TryParse(b.HoraFin, out var bf) &&
+                bi < fin && bf > inicio);
+
+            h.EstadoOcupado = cita is not null ? "CITA" : (bloqueo is not null ? "BLOQUEADO" : "LIBRE");
+            h.IdCita = cita?.Id;
+        }
+
+        var vm = new DisponibilidadViewModel
+        {
+            Fecha = dia,
+            FechaLabel = dia.ToString("dddd, dd 'de' MMMM 'de' yyyy", new System.Globalization.CultureInfo("es-MX")),
+            Horarios = horarios
+        };
+
+        ViewBag.PageTitle = "Mi Disponibilidad";
+        ViewBag.Breadcrumb = new[] { ("Disponibilidad", "/Citas/MiDisponibilidad") };
+        return View(vm);
+    }
+
+    // POST: /Citas/AlternarDisponibilidad  (bloquea/desbloquea un horario de la psicóloga)
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [AuthorizeRole(Roles.Psicologo)]
+    public IActionResult AlternarDisponibilidad(DateTime fecha, string horaInicio, string horaFin)
+    {
+        var idPsicologo = SessionHelper.GetIdUsuario(HttpContext.Session) ?? string.Empty;
+        var nombrePsicologo = SessionHelper.GetNombreCompleto(HttpContext.Session) ?? "Psicóloga";
+
+        var bloqueo = _localData.GetBloqueos(fecha)
+            .FirstOrDefault(b =>
+                string.Equals(b.IdPsicologo, idPsicologo, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(b.HoraInicio, horaInicio, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(b.HoraFin, horaFin, StringComparison.OrdinalIgnoreCase));
+
+        if (bloqueo is not null)
+        {
+            _localData.RemoveBloqueo(bloqueo.Id);
+            TempData["Success"] = $"Horario {horaInicio} – {horaFin} habilitado nuevamente.";
+        }
+        else
+        {
+            _localData.AddBloqueo(new BloqueoDisponibilidad
+            {
+                IdPsicologo = idPsicologo,
+                NombrePsicologo = nombrePsicologo,
+                Fecha = fecha,
+                HoraInicio = horaInicio,
+                HoraFin = horaFin,
+                Motivo = "No disponible"
+            });
+            TempData["Success"] = $"Horario {horaInicio} – {horaFin} marcado como no disponible.";
+        }
+
+        return RedirectToAction(nameof(MiDisponibilidad), new { fecha = fecha.ToString("yyyy-MM-dd") });
     }
 
     // POST: /Citas/ConfirmarAsistencia/{id}

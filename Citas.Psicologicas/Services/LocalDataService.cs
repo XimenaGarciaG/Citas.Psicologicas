@@ -127,6 +127,64 @@ public class LocalDataService : ILocalDataService
         Save("confirmaciones", items);
     }
 
+    // ─── Bloqueos de disponibilidad de psicólogas ───────────────────────────────
+
+    public List<BloqueoDisponibilidad> GetBloqueos() => Load("disponibilidad", new List<BloqueoDisponibilidad>());
+
+    public List<BloqueoDisponibilidad> GetBloqueos(DateTime fecha)
+        => GetBloqueos().Where(b => b.Fecha.Date == fecha.Date).ToList();
+
+    public void AddBloqueo(BloqueoDisponibilidad bloqueo)
+    {
+        var items = GetBloqueos();
+        bloqueo.Id = items.Count == 0 ? 1 : items.Max(b => b.Id) + 1;
+        items.Add(bloqueo);
+        Save("disponibilidad", items);
+    }
+
+    public void RemoveBloqueo(int id)
+    {
+        var items = GetBloqueos();
+        items.RemoveAll(b => b.Id == id);
+        Save("disponibilidad", items);
+    }
+
+    public bool TieneBloqueo(string idPsicologo, DateTime fecha, string horaInicio, string horaFin)
+    {
+        var inicio = TimeSpan.Parse(horaInicio);
+        var fin = TimeSpan.Parse(horaFin);
+        return GetBloqueos(fecha).Any(b =>
+            string.Equals(b.IdPsicologo, idPsicologo, StringComparison.OrdinalIgnoreCase) &&
+            TimeSpan.Parse(b.HoraInicio) < fin &&
+            TimeSpan.Parse(b.HoraFin) > inicio);
+    }
+
+    // ─── Solicitudes generadas desde el calendario ──────────────────────────────
+
+    public List<SolicitudCalendario> GetSolicitudesCalendario() => Load("solicitudes_calendario", new List<SolicitudCalendario>());
+
+    public List<SolicitudCalendario> GetSolicitudesCalendarioPendientes()
+        => GetSolicitudesCalendario().Where(s => !s.Atendida).OrderBy(s => s.FechaCita).ToList();
+
+    public void AddSolicitudCalendario(SolicitudCalendario solicitud)
+    {
+        var items = GetSolicitudesCalendario();
+        solicitud.Id = items.Count == 0 ? 1 : items.Max(s => s.Id) + 1;
+        items.Add(solicitud);
+        Save("solicitudes_calendario", items);
+    }
+
+    public void MarcarSolicitudCalendarioAtendida(int id)
+    {
+        var items = GetSolicitudesCalendario();
+        var idx = items.FindIndex(s => s.Id == id);
+        if (idx >= 0)
+        {
+            items[idx].Atendida = true;
+            Save("solicitudes_calendario", items);
+        }
+    }
+
     // ─── Usuarios locales (contraseñas y estado) ───────────────────────────────
 
     private List<UsuarioLocal> GetUsuariosLocales() => Load("usuarios_local", new List<UsuarioLocal>());
@@ -226,6 +284,10 @@ public class LocalDataService : ILocalDataService
             Save("seguimientos", new List<SeguimientoRegistro>());
         if (!File.Exists(FileFor("confirmaciones")))
             Save("confirmaciones", new List<ConfirmacionAsistencia>());
+        if (!File.Exists(FileFor("disponibilidad")))
+            Save("disponibilidad", new List<BloqueoDisponibilidad>());
+        if (!File.Exists(FileFor("solicitudes_calendario")))
+            Save("solicitudes_calendario", new List<SolicitudCalendario>());
         if (!File.Exists(FileFor("usuarios_local")))
             Save("usuarios_local", new List<UsuarioLocal>());
         if (!File.Exists(FileFor("reset_tokens")))

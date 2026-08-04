@@ -1,5 +1,16 @@
 namespace Citas.Psicologicas.Constants;
 
+/// <summary>Orígenes válidos de una solicitud según el constraint CK__SOLICITUD__orige en la BD</summary>
+public static class OrigenSolicitud
+{
+    /// <summary>Solicitud generada por el propio estudiante (autoservicio)</summary>
+    public const string Autonomo = "AUTONO";
+    /// <summary>Solicitud generada por el tutor del estudiante</summary>
+    public const string Tutoria = "TUTORIA";
+    /// <summary>Solicitud generada presencialmente por la psicóloga</summary>
+    public const string Presencial = "PRESENCIAL";
+}
+
 /// <summary>Estados de una cita según la API REST</summary>
 public static class EstadosCita
 {

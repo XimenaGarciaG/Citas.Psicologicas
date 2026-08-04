@@ -28,6 +28,24 @@
                     <form asp-controller="Solicitudes" asp-action="Create" method="post" data-loading="Enviando solicitud...">
                         @Html.AntiForgeryToken()
                         <input type="hidden" asp-for="IdEstudiante">
+                        <input type="hidden" asp-for="IdPsicologo">
+                        <input type="hidden" asp-for="NombrePsicologo">
+                        <input type="hidden" asp-for="FechaCita">
+                        <input type="hidden" asp-for="HoraInicio">
+                        <input type="hidden" asp-for="HoraFin">
+
+                        @if (Model.DesdeCalendario)
+                        {
+                            <div class="alert alert-success">
+                                <i class="fa fa-calendar-check me-2"></i>
+                                <strong>Solicitud directa del calendario:</strong>
+                                <div class="mt-1">
+                                    Psicóloga: <strong>@Model.NombrePsicologo</strong><br>
+                                    Fecha: <strong>@(Model.FechaCita?.ToString("dd/MM/yyyy"))</strong> &bull;
+                                    Horario: <strong>@Model.HoraInicio – @Model.HoraFin</strong>
+                                </div>
+                            </div>
+                        }
 
                         <div class="mb-4">
                             <label asp-for="Comentario" class="form-label"></label>

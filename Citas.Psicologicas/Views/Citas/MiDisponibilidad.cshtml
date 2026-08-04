@@ -1,0 +1,112 @@
+@model Citas.Psicologicas.ViewModels.Citas.DisponibilidadViewModel
+@{
+    ViewBag.PageTitle = "Mi Disponibilidad";
+}
+
+<div class="animate-fade-up">
+    <div class="page-header">
+        <div>
+            <h1 class="page-header-title"><i class="fa fa-calendar-day me-2"></i>Mi Disponibilidad</h1>
+            <p class="page-header-subtitle">Edite su calendario: marque horarios como no disponibles</p>
+        </div>
+        <a href="/Citas/Agenda" class="btn btn-light"><i class="fa fa-arrow-left me-1"></i> Regresar</a>
+    </div>
+
+    <!-- Selector de fecha -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label">Fecha</label>
+                    <input type="date" name="fecha" class="form-control"
+                           value="@Model.Fecha.ToString("yyyy-MM-dd")">
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100"><i class="fa fa-search me-1"></i> Ver horarios</button>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <span class="text-muted small">@Model.FechaLabel</span>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="d-flex gap-3 mb-3 small flex-wrap">
+        <span><span class="badge-pill badge-confirmada">Libre</span> Horario atendiendo</span>
+        <span><span class="badge-pill badge-pendiente">No disponible</span> Usted lo bloqueó</span>
+        <span><span class="badge-pill badge-cancelada">Cita</span> Horario con cita agendada</span>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Horarios del día</h2>
+        </div>
+        <div class="card-body">
+            @if (!Model.Horarios.Any())
+            {
+                <div class="empty-state">
+                    <i class="fa fa-clock empty-state-icon"></i>
+                    <div class="empty-state-title">Sin horarios</div>
+                    <p class="empty-state-text">No hay horarios definidos para este día.</p>
+                </div>
+            }
+            else
+            {
+                <div class="row g-3">
+                    @foreach (var h in Model.Horarios)
+                    {
+                        @if (h.EstadoOcupado == "CITA")
+                        {
+                            <div class="col-6 col-md-4 col-lg-3">
+                                <div class="p-3 border rounded-3 bg-light text-center h-100" style="opacity:.9">
+                                    <i class="fa fa-calendar-check text-danger me-1"></i>
+                                    <div class="fw-600">@h.HoraInicio – @h.HoraFin</div>
+                                    <span class="badge-pill badge-cancelada">Con cita</span>
+                                </div>
+                            </div>
+                        }
+                        else if (h.EstadoOcupado == "BLOQUEADO")
+                        {
+                            <div class="col-6 col-md-4 col-lg-3">
+                                <div class="p-3 border rounded-3 text-center h-100" style="border-color:#D97706!important;background:#FFFBEB">
+                                    <i class="fa fa-user-clock text-warning me-1"></i>
+                                    <div class="fw-600">@h.HoraInicio – @h.HoraFin</div>
+                                    <span class="badge-pill badge-pendiente">No disponible</span>
+                                    <form method="post" asp-action="AlternarDisponibilidad" class="mt-2" id="formDesbloq_@(h.HoraInicio.Replace(":", ""))">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="fecha" value="@Model.Fecha.ToString("yyyy-MM-dd")" />
+                                        <input type="hidden" name="horaInicio" value="@h.HoraInicio" />
+                                        <input type="hidden" name="horaFin" value="@h.HoraFin" />
+                                        <button type="submit" class="btn btn-sm btn-outline-warning w-100">
+                                            <i class="fa fa-unlock me-1"></i> Habilitar
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="col-6 col-md-4 col-lg-3">
+                                <div class="p-3 border rounded-3 text-center h-100" style="border-color:#059669!important;background:#F0FDF4">
+                                    <i class="fa fa-calendar-check text-success me-1"></i>
+                                    <div class="fw-600">@h.HoraInicio – @h.HoraFin</div>
+                                    <span class="badge-pill badge-confirmada">Libre</span>
+                                    <form method="post" asp-action="AlternarDisponibilidad" class="mt-2" id="formBloq_@(h.HoraInicio.Replace(":", ""))">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="fecha" value="@Model.Fecha.ToString("yyyy-MM-dd")" />
+                                        <input type="hidden" name="horaInicio" value="@h.HoraInicio" />
+                                        <input type="hidden" name="horaFin" value="@h.HoraFin" />
+                                        <button type="button" class="btn btn-sm btn-outline-secondary w-100"
+                                                onclick="confirmAction('formBloq_@(h.HoraInicio.Replace(":", ""))', 'Marcar no disponible', '¿Marcar el horario @h.HoraInicio – @h.HoraFin como no disponible?', 'question', 'Sí, bloquear', '#D97706')">
+                                            <i class="fa fa-lock me-1"></i> No disponible
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>

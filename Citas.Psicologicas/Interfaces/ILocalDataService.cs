@@ -30,6 +30,17 @@ public interface ILocalDataService
     void SetConfirmacion(ConfirmacionAsistencia confirmacion);
     ConfirmacionAsistencia? GetConfirmacion(string idCita);
 
+    List<BloqueoDisponibilidad> GetBloqueos();
+    List<BloqueoDisponibilidad> GetBloqueos(DateTime fecha);
+    void AddBloqueo(BloqueoDisponibilidad bloqueo);
+    void RemoveBloqueo(int id);
+    bool TieneBloqueo(string idPsicologo, DateTime fecha, string horaInicio, string horaFin);
+
+    List<SolicitudCalendario> GetSolicitudesCalendario();
+    List<SolicitudCalendario> GetSolicitudesCalendarioPendientes();
+    void AddSolicitudCalendario(SolicitudCalendario solicitud);
+    void MarcarSolicitudCalendarioAtendida(int id);
+
     void SetContrasenaLocal(string userId, string password);
     string? GetContrasenaLocal(string userId);
     void SetContrasenaLocalPorCorreo(string correo, string password);

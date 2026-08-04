@@ -101,6 +101,13 @@
             }
             @if (isPsico || isAdmin)
             {
+                <a href="/Citas/MiDisponibilidad" class="nav-item-link @(currentPath.StartsWith("/citas/midisponibilidad") ? "active" : "")">
+                    <span class="nav-icon"><i class="fa fa-user-clock"></i></span>
+                    <span class="nav-label">Mi Disponibilidad</span>
+                </a>
+            }
+            @if (isPsico || isAdmin)
+            {
                 <a href="/Solicitudes/Bandeja" class="nav-item-link @(currentPath.StartsWith("/solicitudes/bandeja") ? "active" : "")">
                     <span class="nav-icon"><i class="fa fa-inbox"></i></span>
                     <span class="nav-label">Bandeja</span>

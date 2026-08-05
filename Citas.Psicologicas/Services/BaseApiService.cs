@@ -32,6 +32,28 @@ public abstract class BaseApiService
         return client;
     }
 
+    /// <summary>Extrae el campo "mensaje" del cuerpo de la respuesta de error de la API</summary>
+    protected static string ExtraerMensaje(string content)
+    {
+        if (string.IsNullOrWhiteSpace(content)) return string.Empty;
+        try
+        {
+            using var doc = JsonDocument.Parse(content);
+            if (doc.RootElement.ValueKind == JsonValueKind.Object &&
+                doc.RootElement.TryGetProperty("mensaje", out var mensaje) &&
+                mensaje.ValueKind == JsonValueKind.String)
+            {
+                var m = mensaje.GetString();
+                if (!string.IsNullOrWhiteSpace(m)) return m;
+            }
+        }
+        catch
+        {
+            // el contenido no es JSON; se ignora
+        }
+        return string.Empty;
+    }
+
     /// <summary>Realiza una solicitud GET y deserializa la respuesta</summary>
     protected async Task<ApiResponse<T>> GetAsync<T>(string url, string token)
     {
@@ -46,8 +68,10 @@ public abstract class BaseApiService
                 var data = JsonSerializer.Deserialize<T>(content, JsonOptions);
                 return ApiResponseHelper.Ok(data!);
             }
+            var msg = ExtraerMensaje(content);
             Logger.LogWarning("GET {Url} -> {Status}: {Body}", url, response.StatusCode, content);
-            return ApiResponseHelper.Fail<T>($"Error del servidor: {response.StatusCode}", response.StatusCode);
+            return ApiResponseHelper.Fail<T>($"Error del servidor: {response.StatusCode}" +
+                (string.IsNullOrEmpty(msg) ? string.Empty : $" — {msg}"), response.StatusCode);
         }
         catch (HttpRequestException ex)
         {
@@ -77,8 +101,10 @@ public abstract class BaseApiService
                 var data = JsonSerializer.Deserialize<T>(responseContent, JsonOptions);
                 return ApiResponseHelper.Ok(data!);
             }
+            var msg = ExtraerMensaje(responseContent);
             Logger.LogWarning("POST {Url} -> {Status}: {Body}", url, response.StatusCode, responseContent);
-            return ApiResponseHelper.Fail<T>($"Error del servidor: {response.StatusCode}", response.StatusCode);
+            return ApiResponseHelper.Fail<T>($"Error del servidor: {response.StatusCode}" +
+                (string.IsNullOrEmpty(msg) ? string.Empty : $" — {msg}"), response.StatusCode);
         }
         catch (HttpRequestException ex)
         {
@@ -108,7 +134,9 @@ public abstract class BaseApiService
                 var data = JsonSerializer.Deserialize<T>(responseContent, JsonOptions);
                 return ApiResponseHelper.Ok(data!);
             }
-            return ApiResponseHelper.Fail<T>($"Error del servidor: {response.StatusCode}", response.StatusCode);
+            var msg = ExtraerMensaje(responseContent);
+            return ApiResponseHelper.Fail<T>($"Error del servidor: {response.StatusCode}" +
+                (string.IsNullOrEmpty(msg) ? string.Empty : $" — {msg}"), response.StatusCode);
         }
         catch (Exception ex)
         {
@@ -137,7 +165,9 @@ public abstract class BaseApiService
                 var data = JsonSerializer.Deserialize<T>(responseContent, JsonOptions);
                 return ApiResponseHelper.Ok(data!);
             }
-            return ApiResponseHelper.Fail<T>($"Error del servidor: {response.StatusCode}", response.StatusCode);
+            var msg = ExtraerMensaje(responseContent);
+            return ApiResponseHelper.Fail<T>($"Error del servidor: {response.StatusCode}" +
+                (string.IsNullOrEmpty(msg) ? string.Empty : $" — {msg}"), response.StatusCode);
         }
         catch (Exception ex)
         {

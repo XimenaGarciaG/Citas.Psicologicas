@@ -65,7 +65,11 @@ public class SolicitudesController : Controller
         if (rol == Roles.Estudiante)
         {
             var idUsuario = SessionHelper.GetIdUsuario(HttpContext.Session);
-            solicitudes = solicitudes.Where(s => string.Equals(s.IdEstudiante?.ToString(), idUsuario, StringComparison.OrdinalIgnoreCase)).ToList();
+            solicitudes = solicitudes.Where(s =>
+                !string.IsNullOrEmpty(idUsuario) && (
+                    string.Equals(s.IdEstudianteStr, idUsuario, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(s.IdEstudiante?.ToString(), idUsuario, StringComparison.OrdinalIgnoreCase)
+                )).ToList();
         }
 
         if (!string.IsNullOrEmpty(estado))
@@ -218,18 +222,11 @@ public class SolicitudesController : Controller
         }
 
         var token = SessionHelper.GetToken(HttpContext.Session)!;
-        var dto = new UpdatePrioridadDto
-        {
-            Prioridad = model.Prioridad?.ToUpperInvariant() ?? string.Empty,
-            Observaciones = model.Observaciones,
-            Estado = model.Estado?.ToUpperInvariant()
-        };
-
-        var result = await _solicitudService.UpdatePrioridadAsync(model.IdSolicitud, dto, token);
+        var result = await _solicitudService.UpdatePrioridadAsync(model.IdSolicitud, token);
         if (result.Success)
-            TempData["Success"] = $"Prioridad {model.Prioridad} asignada correctamente.";
+            TempData["Success"] = $"Prioridad recalculada exitosamente por motor Triage: {result.Data?.PrioridadCalculada ?? "ALTA"}.";
         else
-            TempData["Error"] = result.Message ?? "No se pudo asignar la prioridad.";
+            TempData["Error"] = result.Message ?? "No se pudo recalcular la prioridad.";
 
         return RedirectToAction(nameof(Details), new { id = model.IdSolicitud });
     }

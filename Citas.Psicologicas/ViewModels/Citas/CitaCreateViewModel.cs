@@ -34,4 +34,20 @@ public class CitaCreateViewModel
 
     public List<SolicitudDto> SolicitudesPendientes { get; set; } = [];
     public List<UsuarioDto> Psicologos { get; set; } = [];
+
+    /// <summary>Solicitud seleccionada en el GET (para detectar psicóloga específica)</summary>
+    public SolicitudDto? SolicitudSeleccionada { get; set; }
+
+    /// <summary>Psicóloga solicitada por el estudiante (si la solicitud fue específica)</summary>
+    public string PsicologaSolicitadaId { get; set; } = string.Empty;
+    public string PsicologaSolicitadaNombre { get; set; } = string.Empty;
+
+    /// <summary>Indica si la solicitud fue hecha a una psicóloga concreta (solo ella agenda)</summary>
+    public bool EsSolicitudEspecifica => !string.IsNullOrEmpty(PsicologaSolicitadaId);
+
+    /// <summary>Mapa de psicólogas en horarios disponibles para la fecha (para la vista)</summary>
+    public Dictionary<string, List<string>> DisponibilidadPorPsicologa { get; set; } = new();
+
+    /// <summary>Horarios disponibles en la fecha (gris de referencia)</summary>
+    public List<string> HorariosDisponibles { get; set; } = [];
 }

@@ -27,6 +27,16 @@
                     <form asp-controller="Citas" asp-action="Create" method="post" data-loading="Agendando cita...">
                         @Html.AntiForgeryToken()
 
+                        @if (Model.EsSolicitudEspecifica)
+                        {
+                            <div class="alert alert-info">
+                                <i class="fa fa-user-doctor me-1"></i>
+                                Esta solicitud fue hecha específicamente a
+                                <strong>@Model.PsicologaSolicitadaNombre</strong>. La cita solo puede agendarse con ella;
+                                si el horario no está libre se reagendará automáticamente a otro disponible.
+                            </div>
+                        }
+
                         <div class="row g-3">
                             <div class="col-12">
                                 <label asp-for="IdSolicitud" class="form-label"></label>
@@ -47,11 +57,18 @@
 
                             <div class="col-md-6">
                                 <label asp-for="IdPsicologo" class="form-label"></label>
-                                <select asp-for="IdPsicologo" class="form-select">
+                                <select asp-for="IdPsicologo" class="form-select" id="selectPsicologo">
                                     <option value="">-- Seleccione psicólogo/a --</option>
                                     @foreach (var p in Model.Psicologos)
                                     {
-                                        <option value="@p.Id">@p.NombreCompleto</option>
+                                        @if (Model.EsSolicitudEspecifica)
+                                        {
+                                            <option value="@p.Id" selected="@(Model.PsicologaSolicitadaId == p.Id)">@p.NombreCompleto</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@p.Id">@p.NombreCompleto</option>
+                                        }
                                     }
                                 </select>
                                 <span asp-validation-for="IdPsicologo" class="text-danger small"></span>
@@ -84,6 +101,58 @@
                         </div>
 
                         <hr class="my-4">
+
+                        @if (Model.Psicologos.Any())
+                        {
+                            <div class="mb-4" id="disponibilidadPanel">
+                                <h6 class="text-muted"><i class="fa fa-calendar-check me-1 text-primary"></i>Disponibilidad por psicóloga</h6>
+                                <div class="alert alert-light border small">
+                                    El sistema asignará automáticamente una psicóloga con el horario libre.
+                                    Si el horario solicitado no está disponible, se reagendará solo a otro horario disponible.
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Psicóloga/o</th>
+                                                <th>Horarios libres</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var p in Model.Psicologos)
+                                            {
+                                                var libres = Model.DisponibilidadPorPsicologa.TryGetValue(p.Id, out var l) ? l : new List<string>();
+                                                <tr>
+                                                    <td class="fw-600">
+                                                        @p.NombreCompleto
+                                                        @if (Model.EsSolicitudEspecifica && Model.PsicologaSolicitadaId == p.Id)
+                                                        {
+                                                            <span class="badge-pill badge-confirmada ms-1">Solicitada</span>
+                                                        }
+                                                    </td>
+                                                    <td>
+                                                        @if (libres.Any())
+                                                        {
+                                                            <span class="text-success small">
+                                                                @foreach (var h in libres)
+                                                                {
+                                                                    <span class="me-2 badge-pill badge-info">@h – @(IncrementarHora(h))</span>
+                                                                }
+                                                            </span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="text-danger small">Sin disponibilidad</span>
+                                                        }
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        }
+
                         <div class="d-flex justify-content-end gap-2">
                             <a href="/Citas" class="btn btn-light px-4">Cancelar</a>
                             <button type="submit" class="btn btn-primary px-4">
@@ -96,6 +165,16 @@
         </div>
     </div>
 </div>
+
+@functions {
+    // Responsable de mostrar la hora fin de cada slot de disponibilidad (duración por defecto 60 min)
+    string IncrementarHora(string hora)
+    {
+        if (TimeSpan.TryParse(hora, out var ts))
+            return ts.Add(TimeSpan.FromMinutes(60)).ToString(@"hh\:mm");
+        return hora;
+    }
+}
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />

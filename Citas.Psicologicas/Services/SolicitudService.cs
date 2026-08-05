@@ -12,8 +12,13 @@ public class SolicitudService : BaseApiService, ISolicitudService
         : base(httpClientFactory, logger) { }
 
     /// <inheritdoc/>
-    public async Task<ApiResponse<List<SolicitudDto>>> GetAllAsync(string token)
-        => await GetAsync<List<SolicitudDto>>(ApiRoutes.Solicitudes, token);
+    public async Task<ApiResponse<List<SolicitudDto>>> GetAllAsync(string token, string? estado = null)
+    {
+        var url = string.IsNullOrEmpty(estado) 
+            ? ApiRoutes.Solicitudes 
+            : $"{ApiRoutes.Solicitudes}?estado={Uri.EscapeDataString(estado)}";
+        return await GetAsync<List<SolicitudDto>>(url, token);
+    }
 
     /// <inheritdoc/>
     public async Task<ApiResponse<SolicitudDto>> GetByIdAsync(string id, string token)
@@ -24,6 +29,6 @@ public class SolicitudService : BaseApiService, ISolicitudService
         => await PostAsync<SolicitudDto>(ApiRoutes.Solicitudes, dto, token);
 
     /// <inheritdoc/>
-    public async Task<ApiResponse<SolicitudDto>> UpdatePrioridadAsync(string id, UpdatePrioridadDto dto, string token)
-        => await PutAsync<SolicitudDto>(string.Format(ApiRoutes.SolicitudPrioridad, id), dto, token);
+    public async Task<ApiResponse<UpdatePrioridadResponseDto>> UpdatePrioridadAsync(string id, string token)
+        => await PutAsync<UpdatePrioridadResponseDto>(string.Format(ApiRoutes.SolicitudPrioridad, id), new { }, token);
 }

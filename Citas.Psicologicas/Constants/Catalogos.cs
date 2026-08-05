@@ -4,9 +4,9 @@ namespace Citas.Psicologicas.Constants;
 public static class OrigenSolicitud
 {
     /// <summary>Solicitud generada por el propio estudiante (autoservicio)</summary>
-    public const string Autonomo = "AUTONO";
+    public const string Autonomo = "AUTONOMA";
     /// <summary>Solicitud generada por el tutor del estudiante</summary>
-    public const string Tutoria = "TUTORIA";
+    public const string Tutoria = "TITULAR";
     /// <summary>Solicitud generada presencialmente por la psicóloga</summary>
     public const string Presencial = "PRESENCIAL";
 }

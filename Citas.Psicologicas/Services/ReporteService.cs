@@ -17,7 +17,7 @@ public class ReporteService : BaseApiService, IReporteService
         DateTime inicio, DateTime fin, string token)
     {
         var result = await GetAsync<ReporteRespuestaDto>(
-            $"{ApiRoutes.ReportesAsistencia}?inicio={inicio:yyyy-MM-dd}&fin={fin:yyyy-MM-dd}", token);
+            $"{ApiRoutes.ReportesAsistencia}?fechaInicio={inicio:yyyy-MM-dd}&fechaFin={fin:yyyy-MM-dd}", token);
 
         if (!result.Success)
             return ApiResponseHelper.Fail<List<ReporteAsistenciaDto>>(result.Message!, result.StatusCode);
@@ -30,7 +30,7 @@ public class ReporteService : BaseApiService, IReporteService
         DateTime inicio, DateTime fin, string token)
     {
         var result = await GetAsync<ReporteRespuestaDto>(
-            $"{ApiRoutes.ReportesInasistencia}?inicio={inicio:yyyy-MM-dd}&fin={fin:yyyy-MM-dd}", token);
+            $"{ApiRoutes.ReportesInasistencia}?fechaInicio={inicio:yyyy-MM-dd}&fechaFin={fin:yyyy-MM-dd}", token);
 
         if (!result.Success)
             return ApiResponseHelper.Fail<List<ReporteInasistenciaDto>>(result.Message!, result.StatusCode);

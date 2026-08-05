@@ -24,6 +24,8 @@ public class CitaDto
     public string HoraInicio { get; set; } = string.Empty;
     public string HoraFin { get; set; } = string.Empty;
     public int MinutosTolerancia { get; set; } = 15;
+
+    [JsonPropertyName("estadoCita")]
     public string Estado { get; set; } = "RESERVADA";
     public string? Prioridad { get; set; }
     public string? Motivo { get; set; }

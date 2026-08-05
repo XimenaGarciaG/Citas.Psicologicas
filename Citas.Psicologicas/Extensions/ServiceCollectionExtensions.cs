@@ -29,6 +29,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IBitacoraService, BitacoraService>();
         services.AddScoped<IDashboardService, DashboardService>();
         services.AddScoped<IReporteService, ReporteService>();
+        services.AddScoped<INotificacionService, NotificacionService>();
 
         services.AddScoped<ILocalDataService, LocalDataService>();
 

@@ -1,5 +1,7 @@
 using Citas.Psicologicas.Constants;
 using Citas.Psicologicas.DTOs.Citas;
+using Citas.Psicologicas.DTOs.Notificaciones;
+using Citas.Psicologicas.DTOs.Solicitudes;
 using Citas.Psicologicas.Filters;
 using Citas.Psicologicas.Helpers;
 using Citas.Psicologicas.Interfaces;
@@ -16,6 +18,7 @@ public class CitasController : Controller
     private readonly ICitaService _citaService;
     private readonly ISolicitudService _solicitudService;
     private readonly IUsuarioService _usuarioService;
+    private readonly INotificacionService _notificacionService;
     private readonly ILocalDataService _localData;
     private readonly ILogger<CitasController> _logger;
 
@@ -23,12 +26,14 @@ public class CitasController : Controller
         ICitaService citaService,
         ISolicitudService solicitudService,
         IUsuarioService usuarioService,
+        INotificacionService notificacionService,
         ILocalDataService localData,
         ILogger<CitasController> logger)
     {
         _citaService = citaService;
         _solicitudService = solicitudService;
         _usuarioService = usuarioService;
+        _notificacionService = notificacionService;
         _localData = localData;
         _logger = logger;
     }
@@ -81,7 +86,7 @@ public class CitasController : Controller
             {
                 PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
             });
-        return View(vm);
+        return View("Index", vm);
     }
 
     // GET: /Citas/Agenda  (calendario día/semana/mes de la psicóloga)
@@ -97,8 +102,34 @@ public class CitasController : Controller
     public async Task<IActionResult> Create(string? idSolicitud)
     {
         var vm = await CargarDatosCitaAsync();
+
         if (!string.IsNullOrEmpty(idSolicitud))
+        {
             vm.IdSolicitud = idSolicitud;
+            vm.SolicitudSeleccionada = (await _solicitudService.GetByIdAsync(idSolicitud, SessionHelper.GetToken(HttpContext.Session)!)).Data;
+
+            // Si la solicitud fue hecha a una psicóloga concreta (desde el calendario de disponibilidad),
+            // solo ella puede agendar esa cita.
+            var solicitada = _localData.GetSolicitudesCalendario()
+                .FirstOrDefault(s => string.Equals(s.IdSolicitud, idSolicitud, StringComparison.OrdinalIgnoreCase));
+            if (solicitada is not null && !string.IsNullOrEmpty(solicitada.IdPsicologo))
+            {
+                vm.PsicologaSolicitadaId = solicitada.IdPsicologo;
+                vm.PsicologaSolicitadaNombre = solicitada.NombrePsicologo;
+                vm.IdPsicologo = solicitada.IdPsicologo;
+            }
+
+            // Regla de acceso: una psicóloga solo podrá asignar solicitudes dirigidas a ella;
+            // las solicitudes presenciales solo las asigna la psicóloga encargada (administradora).
+            if (!PuedeAsignarSolicitud(vm.SolicitudSeleccionada))
+            {
+                TempData["Error"] = "Solo la psicóloga encargada puede asignar solicitudes presenciales o de otras psicólogas. " +
+                                    "Como psicóloga solo puede agendar las citas dirigidas específicamente a usted.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
+        await CalcularDisponibilidadAsync(vm);
         ViewBag.PageTitle = "Agendar Cita";
         return View(vm);
     }
@@ -122,36 +153,77 @@ public class CitasController : Controller
         }
 
         var token = SessionHelper.GetToken(HttpContext.Session)!;
+
+        var citasTask = _citaService.GetAllAsync(token);
+        var usuariosTask = _usuarioService.GetAllAsync(token);
+        var solicitudTask = _solicitudService.GetByIdAsync(model.IdSolicitud, token);
+        await Task.WhenAll(citasTask, usuariosTask, solicitudTask);
+
+        var citas = citasTask.Result.Data ?? [];
+        var psicologos = usuariosTask.Result.Data?.Where(u => u.Rol == Roles.Psicologo).ToList() ?? [];
+        var config = _localData.GetConfiguracion();
+        var bloqueos = _localData.GetBloqueos(model.FechaCita);
+        var solicitud = solicitudTask.Result.Data;
+
+        // Regla de acceso: la psicóloga solo puede agendar solicitudes dirigidas a ella.
+        if (!PuedeAsignarSolicitud(solicitud))
+        {
+            TempData["Error"] = "Solo la psicóloga encargada puede asignar solicitudes presenciales o de otras psicólogas. " +
+                                "Como psicóloga solo puede agendar las citas dirigidas específicamente a usted.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        // Solicitud hecha a una psicóloga concreta desde el calendario → solo ella agenda.
+        var solicitudCalendario = _localData.GetSolicitudesCalendario()
+            .FirstOrDefault(s => string.Equals(s.IdSolicitud, model.IdSolicitud, StringComparison.OrdinalIgnoreCase));
+
+        var idPsicologoElegida = solicitudCalendario is not null && !string.IsNullOrEmpty(solicitudCalendario.IdPsicologo)
+            ? solicitudCalendario.IdPsicologo
+            : model.IdPsicologo;
+
+        // Una psicóloga regular únicamente agenda para sí misma; la encargada (Administrador) define la asignación.
+        var rolUsuario = SessionHelper.GetRol(HttpContext.Session);
+        var idUsuario = SessionHelper.GetIdUsuario(HttpContext.Session);
+        var asignarSoloASiMisma = rolUsuario == Roles.Psicologo;
+        if (asignarSoloASiMisma)
+            psicologos = psicologos.Where(p => string.Equals(p.Id, idUsuario, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        // ── Asignación automática según disponibilidad ──────────────────────
+        var (idPsicologoAsignada, horaInicio, horaFin, notaAsignacion) =
+            ResolverAsignacion(model, citas, psicologos, bloqueos, config, idPsicologoElegida, asignarSoloASiMisma);
+
+        if (string.IsNullOrEmpty(idPsicologoAsignada))
+        {
+            TempData["Error"] = "No hay psicólogas disponibles en esa fecha/horario. Intente con otra fecha u horario.";
+            await RecargarListasCitaAsync(model);
+            return View(model);
+        }
+
         var dto = new CreateCitaDto
         {
             IdSolicitud = int.TryParse(model.IdSolicitud, out var idSol) ? idSol : 0,
-            IdPsicologo = int.TryParse(model.IdPsicologo, out var idPsi) ? idPsi : 0,
+            IdPsicologo = int.TryParse(idPsicologoAsignada, out var idPsi) ? idPsi : 0,
             FechaCita = model.FechaCita.ToString("yyyy-MM-dd"),
-            HoraInicio = FormatearHora(model.HoraInicio),
-            HoraFin = FormatearHora(model.HoraFin),
+            HoraInicio = FormatearHora(horaInicio),
+            HoraFin = FormatearHora(horaFin),
             MinutosTolerancia = model.MinutosTolerancia
         };
 
         var result = await _citaService.CreateAsync(dto, token);
         if (result.Success)
         {
-            var solicitud = (await _solicitudService.GetAllAsync(token)).Data?
-                .FirstOrDefault(s => string.Equals(s.Id, model.IdSolicitud, StringComparison.OrdinalIgnoreCase));
-            var psicologo = (await _usuarioService.GetAllAsync(token)).Data?
-                .FirstOrDefault(u => string.Equals(u.Id, model.IdPsicologo, StringComparison.OrdinalIgnoreCase));
+            var psicologo = psicologos.FirstOrDefault(p => p.Id == idPsicologoAsignada);
 
-            RegistrarNotificacion(new Models.NotificacionRegistro
-            {
-                Tipo = "Confirmacion",
-                IdEstudiante = solicitud?.IdEstudianteStr ?? string.Empty,
-                NombreEstudiante = solicitud?.NombreEstudiante ?? string.Empty,
-                Asunto = "Cita psicológica agendada",
-                Cuerpo = $"Su cita del {model.FechaCita:dd/MM/yyyy} a las {model.HoraInicio} fue agendada con " +
-                         $"{psicologo?.NombreCompleto ?? "el psicólogo/a asignado"}.",
-                EnviadoPor = SessionHelper.GetNombreCompleto(HttpContext.Session) ?? string.Empty
-            });
+            // Si era una solicitud específica del calendario, se marca como atendida (sincronización).
+            if (solicitudCalendario is not null)
+                _localData.MarcarSolicitudCalendarioAtendida(solicitudCalendario.Id);
 
-            TempData["Success"] = "Cita agendada exitosamente.";
+            await NotificarCitaAgendadaAsync(solicitud, psicologo, model.FechaCita, horaInicio, notaAsignacion, token);
+
+            var mensaje = string.IsNullOrEmpty(notaAsignacion)
+                ? "Cita agendada exitosamente."
+                : $"Cita agendada exitosamente. {notaAsignacion}";
+            TempData["Success"] = mensaje;
             return RedirectToAction(nameof(Index));
         }
 
@@ -496,12 +568,16 @@ public class CitasController : Controller
         }
 
         var token = SessionHelper.GetToken(HttpContext.Session)!;
+        var citaExistente = (await _citaService.GetByIdAsync(id, token)).Data;
+        int.TryParse(citaExistente?.IdPsicologoStr, out var idPsicologo);
+
         var dto = new ReagendarCitaDto
         {
-            NuevaFecha = model.NuevaFecha.Value,
-            NuevaHoraInicio = model.NuevaHoraInicio!,
-            NuevaHoraFin = model.NuevaHoraFin!,
-            MotivoReagenda = model.MotivoReagenda
+            IdPsicologo = idPsicologo > 0 ? idPsicologo : 1,
+            FechaCita = model.NuevaFecha.Value.ToString("yyyy-MM-dd"),
+            HoraInicio = FormatearHora(model.NuevaHoraInicio!),
+            HoraFin = FormatearHora(model.NuevaHoraFin!),
+            MinutosTolerancia = 15
         };
 
         var result = await _citaService.ReagendarAsync(id, dto, token);
@@ -528,6 +604,26 @@ public class CitasController : Controller
             ?.Where(u => u.Rol == Roles.Psicologo)
             .ToList() ?? [];
 
+        var rol = SessionHelper.GetRol(HttpContext.Session);
+        var idUsuario = SessionHelper.GetIdUsuario(HttpContext.Session);
+
+        // Una psicóloga regular solo ve solicitudes dirigidas a ella y solo puede agendar para sí misma.
+        if (rol == Roles.Psicologo)
+        {
+            var dirigidas = _localData.GetSolicitudesCalendario()
+                .Where(s => string.Equals(s.IdPsicologo, idUsuario, StringComparison.OrdinalIgnoreCase) && !s.Atendida)
+                .Select(s => s.IdSolicitud)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            solicitudes = solicitudes
+                .Where(s => dirigidas.Contains(s.Id) || string.Equals(s.IdPsicologo, idUsuario, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            psicologos = psicologos
+                .Where(p => string.Equals(p.Id, idUsuario, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
         return new CitaCreateViewModel
         {
             SolicitudesPendientes = solicitudes,
@@ -541,6 +637,229 @@ public class CitasController : Controller
         var datos = await CargarDatosCitaAsync();
         model.SolicitudesPendientes = datos.SolicitudesPendientes;
         model.Psicologos = datos.Psicologos;
+        await CalcularDisponibilidadAsync(model);
+    }
+
+    /// <summary>
+    /// Regla de acceso de asignación de citas:
+    /// — La psicóloga encargada (Administrador) es la única que puede asignar solicitudes
+    ///   presenciales o dirigir a otras psicólogas.
+    /// — Una psicóloga únicamente puede agendar la cita cuando la solicitud fue enviada
+    ///   directamente a ella.
+    /// </summary>
+    private bool PuedeAsignarSolicitud(SolicitudDto? solicitud)
+    {
+        var rol = SessionHelper.GetRol(HttpContext.Session);
+        if (rol == Roles.Administrador)
+            return true;
+
+        if (rol != Roles.Psicologo)
+            return false;
+
+        var idUsuario = SessionHelper.GetIdUsuario(HttpContext.Session);
+        if (string.IsNullOrEmpty(idUsuario))
+            return false;
+
+        // La psicóloga solo agendará cuando la solicitud fue dirigida específicamente a ella.
+        var idDirigida = solicitud?.IdPsicologo;
+        if (string.IsNullOrEmpty(idDirigida))
+        {
+            var calendario = _localData.GetSolicitudesCalendario()
+                .FirstOrDefault(s => string.Equals(s.IdSolicitud, solicitud?.Id, StringComparison.OrdinalIgnoreCase));
+            idDirigida = calendario?.IdPsicologo;
+        }
+
+        return !string.IsNullOrEmpty(idDirigida) &&
+               string.Equals(idDirigida, idUsuario, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Calcula la disponibilidad (horarios libres por psicóloga) y horarios de la fecha seleccionada</summary>
+    private async Task CalcularDisponibilidadAsync(CitaCreateViewModel model)
+    {
+        var token = SessionHelper.GetToken(HttpContext.Session)!;
+        var config = _localData.GetConfiguracion();
+        var citas = (await _citaService.GetAllAsync(token)).Data ?? [];
+        var bloqueos = _localData.GetBloqueos(model.FechaCita);
+
+        var horarios = GenerarHorarios(config.HorarioInicio, config.HorarioFin, config.DuracionCitaMin);
+        model.HorariosDisponibles = horarios.Select(h => $"{h.HoraInicio} – {h.HoraFin}").ToList();
+
+        var mapa = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var p in model.Psicologos)
+        {
+            var libres = new List<string>();
+            foreach (var h in horarios)
+            {
+                var inicio = TimeSpan.Parse(h.HoraInicio);
+                var fin = TimeSpan.Parse(h.HoraFin);
+
+                var ocupado = citas.Any(c =>
+                    string.Equals(c.IdPsicologoStr, p.Id, StringComparison.OrdinalIgnoreCase) &&
+                    c.FechaCita?.Date == model.FechaCita.Date &&
+                    c.Estado != EstadosCita.Cancelada &&
+                    TimeSpan.TryParse(NormalizarHora(c.HoraInicio), out var hi) &&
+                    TimeSpan.TryParse(NormalizarHora(c.HoraFin), out var hf) &&
+                    hi < fin && hf > inicio);
+
+                var bloqueado = bloqueos.Any(b =>
+                    string.Equals(b.IdPsicologo, p.Id, StringComparison.OrdinalIgnoreCase) &&
+                    TimeSpan.TryParse(b.HoraInicio, out var bi) &&
+                    TimeSpan.TryParse(b.HoraFin, out var bf) &&
+                    bi < fin && bf > inicio);
+
+                if (!ocupado && !bloqueado)
+                    libres.Add(h.HoraInicio);
+            }
+            mapa[p.Id] = libres;
+        }
+
+        model.DisponibilidadPorPsicologa = mapa;
+    }
+
+    /// <summary>
+    /// Resuelve automáticamente la psicóloga y el horario de la cita según la disponibilidad.
+    /// Si la psicóloga elegida (o la solicitada) no tiene el horario, se asigna a otra disponible.
+    /// </summary>
+    private static (string IdPsicologo, string HoraInicio, string HoraFin, string? Nota) ResolverAsignacion(
+        CitaCreateViewModel model,
+        List<DTOs.Citas.CitaDto> citas,
+        List<DTOs.Usuarios.UsuarioDto> psicologos,
+        List<BloqueoDisponibilidad> bloqueos,
+        ConfiguracionSistema config,
+        string idPsicologoPreferida,
+        bool soloASiMisma = false)
+    {
+        static bool Ocupado(string idPsi, string inicio, string fin, List<DTOs.Citas.CitaDto> citas,
+            List<BloqueoDisponibilidad> bloqueos, DateTime fecha)
+        {
+            if (!TimeSpan.TryParse(inicio, out var ini) || !TimeSpan.TryParse(fin, out var finT))
+                return true; // hora inválida → considerarla ocupada
+            var enCita = citas.Any(c =>
+                string.Equals(c.IdPsicologoStr, idPsi, StringComparison.OrdinalIgnoreCase) &&
+                c.FechaCita?.Date == fecha.Date &&
+                c.Estado != EstadosCita.Cancelada &&
+                TimeSpan.TryParse(c.HoraInicio.Replace('"', ' ').Trim(), out var hi) &&
+                TimeSpan.TryParse(c.HoraFin.Replace('"', ' ').Trim(), out var hf) &&
+                hi < finT && hf > ini);
+            var enBloqueo = bloqueos.Any(b =>
+                string.Equals(b.IdPsicologo, idPsi, StringComparison.OrdinalIgnoreCase) &&
+                TimeSpan.TryParse(b.HoraInicio, out var bi) &&
+                TimeSpan.TryParse(b.HoraFin, out var bf) &&
+                bi < finT && bf > ini);
+            return enCita || enBloqueo;
+        }
+
+        // 1) Horario exacto solicitado por el usuario.
+        var horario = new[] {
+            (idPsicologoPreferida, model.HoraInicio, model.HoraFin),
+            (model.IdPsicologo, model.HoraInicio, model.HoraFin)
+        };
+        foreach (var (idPsi, hIni, hFin) in horario)
+        {
+            if (string.IsNullOrEmpty(idPsi)) continue;
+            if (!Ocupado(idPsi, hIni, hFin, citas, bloqueos, model.FechaCita.Date))
+                return (idPsi, hIni, hFin, null);
+        }
+
+        // 2) Misma hora esbelta en otra psicóloga (cualquiera disponible en ese horario).
+        //    (no aplica cuando la psicóloga regular solo agenda para sí misma)
+        if (!soloASiMisma)
+        {
+            foreach (var p in psicologos)
+            {
+                if (!Ocupado(p.Id, model.HoraInicio, model.HoraFin, citas, bloqueos, model.FechaCita.Date))
+                    return (p.Id, model.HoraInicio, model.HoraFin,
+                        $"El horario {model.HoraInicio}–{model.HoraFin} no estaba disponible para la psicóloga seleccionada; se asignó a {p.NombreCompleto}.");
+            }
+        }
+
+        // 3) Si la psicóloga preferida está ocupada todo el día, se busca un horario libre con ella.
+        if (!string.IsNullOrEmpty(idPsicologoPreferida))
+        {
+            var horarios = GenerarHorarios(config.HorarioInicio, config.HorarioFin, config.DuracionCitaMin);
+            foreach (var h in horarios)
+            {
+                if (!Ocupado(idPsicologoPreferida, h.HoraInicio, h.HoraFin, citas, bloqueos, model.FechaCita.Date))
+                    return (idPsicologoPreferida, h.HoraInicio, h.HoraFin,
+                        $"La psicóloga solicitada no tenía libre el horario elegido; se reagendó automáticamente a {h.HoraInicio}–{h.HoraFin}.");
+            }
+        }
+
+        // 4) Cualquier psicóloga con cualquier horario libre.
+        //    (no aplica cuando la psicóloga regular solo agenda para sí misma)
+        if (!soloASiMisma)
+        {
+            foreach (var p in psicologos)
+            {
+                var horarios = GenerarHorarios(config.HorarioInicio, config.HorarioFin, config.DuracionCitaMin);
+                foreach (var h in horarios)
+                {
+                    if (!Ocupado(p.Id, h.HoraInicio, h.HoraFin, citas, bloqueos, model.FechaCita.Date))
+                        return (p.Id, h.HoraInicio, h.HoraFin,
+                            $"No había disponibilidad; se asignó automáticamente con {p.NombreCompleto} a {h.HoraInicio}–{h.HoraFin}.");
+                }
+            }
+        }
+
+        return (string.Empty, string.Empty, string.Empty, null);
+    }
+
+    /// <summary>Notifica por correo al estudiante (vía API) y registra la notificación en el historial local</summary>
+    private async Task NotificarCitaAgendadaAsync(
+        SolicitudDto? solicitud,
+        DTOs.Usuarios.UsuarioDto? psicologo,
+        DateTime fecha,
+        string horaInicio,
+        string? notaAsignacion,
+        string token)
+    {
+        var correoEstudiante = string.Empty;
+        var nombreEstudiante = solicitud?.NombreEstudiante ?? string.Empty;
+
+        if (solicitud is not null)
+        {
+            var estudiante = (await _usuarioService.GetByIdAsync(solicitud.IdEstudianteStr, token)).Data;
+            correoEstudiante = estudiante?.Correo ?? string.Empty;
+            if (string.IsNullOrEmpty(nombreEstudiante))
+                nombreEstudiante = estudiante?.NombreCompleto ?? string.Empty;
+        }
+
+        var cuerpo = $"Su cita del {fecha:dd/MM/yyyy} a las {horaInicio} fue agendada con " +
+                     $"{psicologo?.NombreCompleto ?? "el psicólogo/a asignado"}.";
+        if (!string.IsNullOrEmpty(notaAsignacion))
+            cuerpo = $"{notaAsignacion} Su cita quedó agendada el {fecha:dd/MM/yyyy} a las {horaInicio}.";
+
+        RegistrarNotificacion(new Models.NotificacionRegistro
+        {
+            Tipo = "Confirmacion",
+            IdEstudiante = solicitud?.IdEstudianteStr ?? string.Empty,
+            CorreoDestinatario = correoEstudiante,
+            NombreEstudiante = nombreEstudiante,
+            Asunto = "Cita psicológica agendada",
+            Cuerpo = cuerpo,
+            EnviadoPor = SessionHelper.GetNombreCompleto(HttpContext.Session) ?? string.Empty
+        });
+
+        try
+        {
+            if (!string.IsNullOrEmpty(correoEstudiante))
+            {
+                var enviado = await _notificacionService.EnviarRecordatorioAsync(new NotificacionRequestDto
+                {
+                    EmailDestino = correoEstudiante,
+                    NombrePaciente = nombreEstudiante,
+                    FechaCita = fecha.ToString("yyyy-MM-dd"),
+                    HoraCita = horaInicio.Length >= 5 ? horaInicio[..5] : horaInicio
+                }, token);
+
+                if (!enviado)
+                    _logger.LogWarning("No se pudo enviar el correo de confirmación de cita a {Email}", correoEstudiante);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Ocurrió un error al enviar la notificación por correo de la cita.");
+        }
     }
 
     /// <summary>Normaliza una hora "HH:mm" a "HH:mm:ss"</summary>

@@ -70,10 +70,10 @@
                 </a>
             }
 
-            @if (isAdmin || isPsico || isEstud)
+            @if (isAdmin || esEncargada || isEstud)
             {
                 <div class="nav-section-title">Solicitudes</div>
-                <a href="/Solicitudes" class="nav-item-link @(currentPath.StartsWith("/solicitudes") ? "active" : "")">
+                <a href="/Solicitudes" class="nav-item-link @(currentPath.StartsWith("/solicitudes") && !currentPath.StartsWith("/solicitudes/bandeja") ? "active" : "")">
                     <span class="nav-icon"><i class="fa fa-file-medical"></i></span>
                     <span class="nav-label">Solicitudes</span>
                 </a>

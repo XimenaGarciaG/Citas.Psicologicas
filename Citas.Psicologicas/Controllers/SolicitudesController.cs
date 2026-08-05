@@ -47,25 +47,37 @@ public class SolicitudesController : Controller
         return RedirectToAction("Create", "Citas", new { idSolicitud = id });
     }
 
-    // GET: /Solicitudes/Bandeja  (cola de atención de la psicóloga)
+    // GET: /Solicitudes/Bandeja  (cola de atención de la psicóloga: solicitudes directas)
     [AuthorizeRole(Roles.Psicologo, Roles.Administrador)]
     public Task<IActionResult> Bandeja()
     {
         ViewBag.PageTitle = "Bandeja de Solicitudes";
         ViewBag.Breadcrumb = new[] { ("Solicitudes", "/Solicitudes/Bandeja") };
-        return Index(estado: EstadosSolicitud.Pendiente, prioridad: null, busqueda: null);
+        return Index(estado: EstadosSolicitud.Pendiente, prioridad: null, busqueda: null, bandeja: true);
     }
 
     // GET: /Solicitudes
-    public async Task<IActionResult> Index(string? estado, string? prioridad, string? busqueda)
+    public async Task<IActionResult> Index(string? estado, string? prioridad, string? busqueda, bool bandeja = false)
     {
+        var rol = SessionHelper.GetRol(HttpContext.Session);
+        var esEncargada = SessionHelper.EsPsicologaEncargada(HttpContext.Session, _localData);
+
+        // El listado general de solicitudes solo lo ven Administrador, Psicóloga Encargada y el Estudiante.
+        // Una psicóloga regular accede únicamente a su Bandeja (solicitudes directas dirigidas a ella).
+        if (rol == Roles.Psicologo && !esEncargada && !bandeja)
+            return RedirectToAction("AccessDenied", "Error");
+
         var token = SessionHelper.GetToken(HttpContext.Session)!;
         var result = await _solicitudService.GetAllAsync(token);
 
         var solicitudes = result.Data ?? [];
 
+        // La psicóloga regular no ve el listado general; solo sus solicitudes directas en la Bandeja.
+        bool mostrarListadoGeneral = !(rol == Roles.Psicologo && !esEncargada);
+        if (!mostrarListadoGeneral)
+            solicitudes = [];
+
         // Filtrar solo las del estudiante si el rol es Estudiante
-        var rol = SessionHelper.GetRol(HttpContext.Session);
         if (rol == Roles.Estudiante)
         {
             var idUsuario = SessionHelper.GetIdUsuario(HttpContext.Session);
@@ -98,6 +110,8 @@ public class SolicitudesController : Controller
 
         ViewBag.PageTitle = "Solicitudes de Atención";
         ViewBag.SolicitudesCalendario = null;
+        ViewBag.MostrarListadoGeneral = mostrarListadoGeneral;
+        ViewBag.EsBandeja = bandeja;
 
         // La psicóloga ve las solicitudes directas del calendario que le fueron asignadas.
         var rolSesion = SessionHelper.GetRol(HttpContext.Session);

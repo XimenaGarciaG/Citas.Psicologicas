@@ -1273,6 +1273,54 @@ public class CitasController : Controller
         {
             _logger.LogWarning(ex, "Ocurrió un error al enviar la notificación por correo de la cita.");
         }
+
+        await NotificarPsicologaAsignadaAsync(psicologo, fecha, horaInicio, nombreEstudiante, token);
+    }
+
+    /// <summary>Notifica a la psicóloga asignada cuando se le agenda una cita (p. ej. la encargada la programó)</summary>
+    private async Task NotificarPsicologaAsignadaAsync(
+        DTOs.Usuarios.UsuarioDto? psicologo,
+        DateTime fecha,
+        string horaInicio,
+        string nombreEstudiante,
+        string token)
+    {
+        if (psicologo is null)
+            return;
+
+        var cuerpo = $"Se le asignó una cita el {fecha:dd/MM/yyyy} a las {horaInicio} con el/la estudiante {nombreEstudiante}.";
+
+        RegistrarNotificacion(new Models.NotificacionRegistro
+        {
+            Tipo = "Confirmacion",
+            IdEstudiante = string.Empty,
+            CorreoDestinatario = psicologo.Correo,
+            NombreEstudiante = nombreEstudiante,
+            Asunto = "Cita asignada",
+            Cuerpo = cuerpo,
+            EnviadoPor = SessionHelper.GetNombreCompleto(HttpContext.Session) ?? string.Empty
+        });
+
+        try
+        {
+            if (!string.IsNullOrEmpty(psicologo.Correo))
+            {
+                var enviado = await _notificacionService.EnviarRecordatorioAsync(new NotificacionRequestDto
+                {
+                    EmailDestino = psicologo.Correo,
+                    NombrePaciente = psicologo.NombreCompleto,
+                    FechaCita = fecha.ToString("yyyy-MM-dd"),
+                    HoraCita = horaInicio.Length >= 5 ? horaInicio[..5] : horaInicio
+                }, token);
+
+                if (!enviado)
+                    _logger.LogWarning("No se pudo enviar el correo de cita asignada a la psicóloga {Email}", psicologo.Correo);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Ocurrió un error al notificar a la psicóloga sobre la cita asignada.");
+        }
     }
 
     /// <summary>Normaliza una hora "HH:mm" a "HH:mm:ss"</summary>

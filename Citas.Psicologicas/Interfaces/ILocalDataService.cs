@@ -36,6 +36,10 @@ public interface ILocalDataService
     void SetConfirmacion(ConfirmacionAsistencia confirmacion);
     ConfirmacionAsistencia? GetConfirmacion(string idCita);
 
+    List<ReagendaRegistro> GetReagendas();
+    ReagendaRegistro? GetReagenda(string idCita);
+    void AddReagenda(ReagendaRegistro reagenda);
+
     List<BloqueoDisponibilidad> GetBloqueos();
     List<BloqueoDisponibilidad> GetBloqueos(DateTime fecha);
     void AddBloqueo(BloqueoDisponibilidad bloqueo);
@@ -49,6 +53,9 @@ public interface ILocalDataService
 
     List<CanalizacionSolicitud> GetCanalizacionesSolicitudes();
     void AddCanalizacionSolicitud(CanalizacionSolicitud vinculo);
+
+    string? GetPsicologaEncargadaId();
+    void SetPsicologaEncargadaId(string? idUsuario);
 
     void SetContrasenaLocal(string userId, string password);
     string? GetContrasenaLocal(string userId);

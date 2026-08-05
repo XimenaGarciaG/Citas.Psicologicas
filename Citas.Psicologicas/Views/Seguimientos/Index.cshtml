@@ -1,7 +1,7 @@
-@model List<Citas.Psicologicas.Models.SeguimientoRegistro>
+@model Citas.Psicologicas.ViewModels.Seguimientos.SeguimientoIndexViewModel
 @{
     ViewBag.PageTitle = "Seguimientos";
-    var estado = ViewBag.Estado as string;
+    var estado = Model.Estado;
 }
 
 <div class="animate-fade-up">
@@ -37,7 +37,7 @@
             <h2 class="card-title"><i class="fa fa-list me-1"></i>Registros</h2>
         </div>
         <div class="table-responsive">
-            @if (!Model.Any())
+            @if (!Model.Seguimientos.Any())
             {
                 <div class="empty-state">
                     <i class="fa fa-check-double empty-state-icon"></i>
@@ -52,22 +52,29 @@
                         <tr>
                             <th>Fecha registro</th>
                             <th>Estudiante</th>
+                            <th>Próxima cita</th>
                             <th>Psicólogo/a</th>
                             <th>Motivo</th>
-                            <th>Notas de la sesión</th>
+                            <th>Notas de la sesión anterior</th>
                             <th>Estado</th>
-                            <th>Fecha programada</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var s in Model)
+                        @foreach (var s in Model.Seguimientos)
                         {
                             <tr>
                                 <td class="text-nowrap">@s.FechaRegistro.ToString("dd/MM/yyyy")</td>
                                 <td class="fw-600">@s.NombreEstudiante</td>
-                                <td class="text-muted">@(s.NombrePsicologo ?? "—")</td>
+                                <td class="text-nowrap">
+                                    @if (s.FechaMostrar.HasValue)
+                                    {
+                                        <span class="badge-pill badge-confirmada">@s.FechaMostrar.Value.ToString("dd/MM/yyyy")</span>
+                                    }
+                                    else { <span class="text-muted">Sin fecha</span> }
+                                </td>
+                                <td class="text-muted">@s.NombrePsicologo</td>
                                 <td class="text-muted">@(s.Motivo ?? "—")</td>
-                                <td class="text-muted small" style="max-width:220px">
+                                <td class="text-muted small" style="max-width:260px">
                                     @if (!string.IsNullOrEmpty(s.Notas))
                                     { <span class="text-truncate-2" title="@s.Notas">@s.Notas</span> }
                                     else { <span>—</span> }
@@ -82,7 +89,6 @@
                                         <span class="badge-pill badge-pendiente">Pendiente</span>
                                     }
                                 </td>
-                                <td>@(s.FechaProgramada?.ToString("dd/MM/yyyy") ?? "—")</td>
                             </tr>
                         }
                     </tbody>

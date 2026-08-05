@@ -1,4 +1,5 @@
 using Citas.Psicologicas.Constants;
+using Citas.Psicologicas.Interfaces;
 
 namespace Citas.Psicologicas.Helpers;
 
@@ -16,6 +17,18 @@ public static class SessionHelper
 
     public static bool HasRole(ISession session, params string[] roles) =>
         roles.Contains(GetRol(session));
+
+    /// <summary>¿El usuario en sesión es la Psicóloga Encargada designada?</summary>
+    public static bool EsPsicologaEncargada(ISession session, ILocalDataService localData)
+    {
+        if (!HasRole(session, Roles.Psicologo))
+            return false;
+
+        var idUsuario = GetIdUsuario(session);
+        var encargadaId = localData.GetPsicologaEncargadaId();
+        return !string.IsNullOrEmpty(idUsuario) &&
+               string.Equals(idUsuario, encargadaId, StringComparison.OrdinalIgnoreCase);
+    }
 
     public static void SetSession(
         ISession session,

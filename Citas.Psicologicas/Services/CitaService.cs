@@ -36,6 +36,6 @@ public class CitaService : BaseApiService, ICitaService
         => await PatchAsync<bool>(string.Format(ApiRoutes.CitaCancelar, id), null, token);
 
     /// <inheritdoc/>
-    public async Task<ApiResponse<bool>> ReagendarAsync(string id, ReagendarCitaDto dto, string token)
-        => await PatchAsync<bool>(string.Format(ApiRoutes.CitaReagendar, id), dto, token);
+    public async Task<ApiResponse<CitaDto>> ReagendarAsync(string id, ReagendarCitaDto dto, string token)
+        => await PatchAsync<CitaDto>(string.Format(ApiRoutes.CitaReagendar, id), dto, token);
 }

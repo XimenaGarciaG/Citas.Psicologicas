@@ -56,7 +56,7 @@ public class CitasController : Controller
         // Filtrar según rol
         if (rol == Roles.Estudiante)
             citas = citas.Where(c => string.Equals(c.IdEstudiante?.ToString(), idUsuario, StringComparison.OrdinalIgnoreCase)).ToList();
-        else if (rol == Roles.Psicologo)
+        else if (rol == Roles.Psicologo && !EsPsicologaEncargada())
             citas = citas.Where(c => string.Equals(c.IdPsicologo?.ToString(), idUsuario, StringComparison.OrdinalIgnoreCase)).ToList();
 
         if (!string.IsNullOrEmpty(estado))
@@ -185,10 +185,10 @@ public class CitasController : Controller
             ? solicitudCalendario.IdPsicologo
             : model.IdPsicologo;
 
-        // Una psicóloga regular únicamente agenda para sí misma; la encargada (Administrador) define la asignación.
+        // Una psicóloga regular únicamente agenda para sí misma; la encargada define la asignación.
         var rolUsuario = SessionHelper.GetRol(HttpContext.Session);
         var idUsuario = SessionHelper.GetIdUsuario(HttpContext.Session);
-        var asignarSoloASiMisma = rolUsuario == Roles.Psicologo;
+        var asignarSoloASiMisma = rolUsuario == Roles.Psicologo && !EsPsicologaEncargada();
         if (asignarSoloASiMisma)
             psicologos = psicologos.Where(p => string.Equals(p.Id, idUsuario, StringComparison.OrdinalIgnoreCase)).ToList();
 
@@ -255,13 +255,16 @@ public class CitasController : Controller
 
         // Regla de acceso: el estudiante solo ve sus propias citas y el psicólogo las suyas.
         if ((rol == Roles.Estudiante && !string.Equals(cita.IdEstudianteStr, idUsuario, StringComparison.OrdinalIgnoreCase)) ||
-            (rol == Roles.Psicologo && !string.Equals(cita.IdPsicologoStr, idUsuario, StringComparison.OrdinalIgnoreCase)))
+            (rol == Roles.Psicologo && !EsPsicologaEncargada() && !string.Equals(cita.IdPsicologoStr, idUsuario, StringComparison.OrdinalIgnoreCase)))
         {
             TempData["Error"] = "No tiene permisos para ver esta cita.";
             return RedirectToAction(nameof(Index));
         }
 
         var vm = new CitaDetalleViewModel { Cita = cita };
+
+        // Regla de negocio: una cita solo puede reagendarse una vez.
+        vm.Reagendada = _localData.GetReagenda(cita.Id) is not null;
 
         // Estado de la confirmación electrónica de asistencia (respaldo local)
         var confirmacion = _localData.GetConfirmacion(cita.Id);
@@ -610,6 +613,13 @@ public class CitasController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
+        // Regla de negocio: una cita solo puede reagendarse una vez.
+        if (_localData.GetReagenda(id) is not null || citaExistente.Estado == EstadosCita.Reagendada)
+        {
+            TempData["Error"] = "Esta cita ya fue reagendada; solo se permite una reagendación por cita.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
         int.TryParse(citaExistente?.IdPsicologoStr, out var idPsicologo);
         var config = _localData.GetConfiguracion();
 
@@ -624,8 +634,33 @@ public class CitasController : Controller
         };
 
         var result = await _citaService.ReagendarAsync(id, dto, token);
-        TempData[result.Success ? "Success" : "Error"] =
-            result.Success ? "Cita reagendada exitosamente." : (result.Message ?? "No se pudo reagendar la cita.");
+        if (result.Success)
+        {
+            var citaReagendada = result.Data ?? (await _citaService.GetByIdAsync(id, token)).Data;
+            if (citaReagendada is not null && citaExistente is not null)
+            {
+                // Registro local de la reagenda para impedir una segunda reagendación.
+                _localData.AddReagenda(new Models.ReagendaRegistro
+                {
+                    IdCita = citaReagendada.Id,
+                    IdSolicitud = citaReagendada.IdSolicitud?.ToString() ?? string.Empty,
+                    IdEstudiante = citaReagendada.IdEstudianteStr,
+                    NombreEstudiante = citaReagendada.NombreEstudiante ?? string.Empty,
+                    FechaAnterior = citaExistente.Fecha,
+                    HoraInicioAnterior = citaExistente.HoraInicio,
+                    NuevaFecha = citaReagendada.Fecha,
+                    NuevaHoraInicio = citaReagendada.HoraInicio,
+                    MotivoReagenda = dto.MotivoReagenda
+                });
+
+                await NotificarCitaReagendadaAsync(citaReagendada, token);
+            }
+            TempData["Success"] = "Cita reagendada exitosamente.";
+        }
+        else
+        {
+            TempData["Error"] = result.Message ?? "No se pudo reagendar la cita.";
+        }
         return RedirectToAction(nameof(Details), new { id });
     }
 
@@ -726,7 +761,7 @@ public class CitasController : Controller
 
         // Si quien la genera es una psicóloga, la solicitud queda dirigida a ella (como en el
         // calendario de disponibilidad), para que PuedeAsignarSolicitud la deje agendar.
-        if (SessionHelper.GetRol(HttpContext.Session) == Roles.Psicologo)
+        if (SessionHelper.GetRol(HttpContext.Session) == Roles.Psicologo && !EsPsicologaEncargada())
         {
             _localData.AddSolicitudCalendario(new SolicitudCalendario
             {
@@ -843,7 +878,7 @@ public class CitasController : Controller
         var idUsuario = SessionHelper.GetIdUsuario(HttpContext.Session);
 
         // Una psicóloga regular solo ve solicitudes dirigidas a ella y solo puede agendar para sí misma.
-        if (rol == Roles.Psicologo)
+        if (rol == Roles.Psicologo && !EsPsicologaEncargada())
         {
             var dirigidas = _localData.GetSolicitudesCalendario()
                 .Where(s => string.Equals(s.IdPsicologo, idUsuario, StringComparison.OrdinalIgnoreCase) && !s.Atendida)
@@ -877,15 +912,15 @@ public class CitasController : Controller
 
     /// <summary>
     /// Regla de acceso de asignación de citas:
-    /// — La psicóloga encargada (Administrador) es la única que puede asignar solicitudes
-    ///   presenciales o dirigir a otras psicólogas.
+    /// — La psicóloga encargada (Administrador o la designada) es la única que puede
+    ///   asignar solicitudes presenciales o dirigir a otras psicólogas.
     /// — Una psicóloga únicamente puede agendar la cita cuando la solicitud fue enviada
     ///   directamente a ella.
     /// </summary>
     private bool PuedeAsignarSolicitud(SolicitudDto? solicitud)
     {
         var rol = SessionHelper.GetRol(HttpContext.Session);
-        if (rol == Roles.Administrador)
+        if (rol == Roles.Administrador || EsPsicologaEncargada())
             return true;
 
         if (rol != Roles.Psicologo)
@@ -908,14 +943,19 @@ public class CitasController : Controller
                string.Equals(idDirigida, idUsuario, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>¿El usuario en sesión es la Psicóloga Encargada designada?</summary>
+    private bool EsPsicologaEncargada()
+        => SessionHelper.EsPsicologaEncargada(HttpContext.Session, _localData);
+
     /// <summary>
     /// Regla de acceso de las acciones de confirmación/cancelación/reagenda/seguimiento:
     /// la psicóloga (rol no administrador) solo puede operar las citas asignadas a ella
-    /// (misma regla que el GET Details). El Administrador puede operar cualquier cita.
+    /// (misma regla que el GET Details). El Administrador y la Psicóloga Encargada pueden
+    /// operar cualquier cita.
     /// </summary>
     private bool PuedeOperarCita(CitaDto? cita, string? rol, string? idUsuario)
     {
-        if (!string.Equals(rol, Roles.Psicologo, StringComparison.OrdinalIgnoreCase) || cita is null)
+        if (!string.Equals(rol, Roles.Psicologo, StringComparison.OrdinalIgnoreCase) || cita is null || EsPsicologaEncargada())
             return true;
         return !string.IsNullOrEmpty(idUsuario) &&
                string.Equals(cita.IdPsicologoStr, idUsuario, StringComparison.OrdinalIgnoreCase);
@@ -1050,6 +1090,49 @@ public class CitasController : Controller
         }
 
         return (string.Empty, string.Empty, string.Empty, null);
+    }
+
+    /// <summary>Notifica por correo al estudiante (vía API) de la cita reagendada y registra la notificación en el historial local</summary>
+    private async Task NotificarCitaReagendadaAsync(CitaDto cita, string token)
+    {
+        var estudiante = (await _usuarioService.GetByIdAsync(cita.IdEstudianteStr, token)).Data;
+        var correoEstudiante = estudiante?.Correo ?? string.Empty;
+        var nombreEstudiante = cita.NombreEstudiante ??
+                               (!string.IsNullOrEmpty(estudiante?.NombreCompleto) ? estudiante!.NombreCompleto : string.Empty);
+
+        var cuerpo = $"Su cita fue reagendada. Nueva fecha: {cita.Fecha:dd/MM/yyyy} a las {cita.HoraInicio}.";
+
+        RegistrarNotificacion(new Models.NotificacionRegistro
+        {
+            Tipo = "Reagenda",
+            IdEstudiante = cita.IdEstudianteStr,
+            CorreoDestinatario = correoEstudiante,
+            NombreEstudiante = nombreEstudiante,
+            Asunto = "Cita psicológica reagendada",
+            Cuerpo = cuerpo,
+            EnviadoPor = SessionHelper.GetNombreCompleto(HttpContext.Session) ?? string.Empty
+        });
+
+        try
+        {
+            if (!string.IsNullOrEmpty(correoEstudiante))
+            {
+                var enviado = await _notificacionService.EnviarRecordatorioAsync(new NotificacionRequestDto
+                {
+                    EmailDestino = correoEstudiante,
+                    NombrePaciente = nombreEstudiante,
+                    FechaCita = cita.Fecha.ToString("yyyy-MM-dd"),
+                    HoraCita = cita.HoraInicio.Length >= 5 ? cita.HoraInicio[..5] : cita.HoraInicio
+                }, token);
+
+                if (!enviado)
+                    _logger.LogWarning("No se pudo enviar el correo de reagenda a {Email}", correoEstudiante);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Ocurrió un error al enviar la notificación de reagenda.");
+        }
     }
 
     /// <summary>Notifica por correo al estudiante (vía API) y registra la notificación en el historial local</summary>

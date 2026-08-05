@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: citas-psicologicas
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /Home/Index
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ApiSettings__BaseUrl
+        value: https://backend-administracion.onrender.com/
+      - key: ApiSettings__TimeoutSeconds
+        value: "30"
+      - key: Session__TimeoutMinutes
+        value: "60"

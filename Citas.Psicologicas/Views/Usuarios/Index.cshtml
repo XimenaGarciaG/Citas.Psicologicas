@@ -1,6 +1,7 @@
 @model Citas.Psicologicas.ViewModels.Usuarios.UsuarioIndexViewModel
 @{
     ViewBag.PageTitle = "Usuarios";
+    var idEncargada = ViewBag.IdPsicologaEncargada as string ?? "";
 }
 
 <div class="animate-fade-up">
@@ -118,7 +119,15 @@
                                         </div>
                                     </td>
                                     <td class="text-muted">@u.Correo</td>
-                                    <td><span class="badge bg-primary">@u.RolLabel</span></td>
+                                    <td>
+                                        <span class="badge bg-primary">@u.RolLabel</span>
+                                        @if (u.Id == idEncargada)
+                                        {
+                                            <span class="badge bg-info ms-1" data-bs-toggle="tooltip" title="Psicóloga Encargada">
+                                                <i class="fa fa-star me-1"></i>Encargada
+                                            </span>
+                                        }
+                                    </td>
                                     <td>@(u.Matricula ?? "—")</td>
                                     <td>
                                         <span class="badge-pill @(u.Activo ? "badge-activo" : "badge-inactivo")">
@@ -155,6 +164,33 @@
                                                     <i class="fa fa-key"></i>
                                                 </button>
                                             </form>
+                                            @if (u.Rol == Roles.Psicologo)
+                                            {
+                                                if (u.Id == idEncargada)
+                                                {
+                                                    <form method="post" asp-action="QuitarEncargada" class="d-inline" id="formQuitarEnc_@u.Id">
+                                                        @Html.AntiForgeryToken()
+                                                        <button type="button"
+                                                                class="btn btn-icon btn-light btn-sm text-warning"
+                                                                data-bs-toggle="tooltip" title="Quitar como Psicóloga Encargada"
+                                                                onclick="confirmAction('formQuitarEnc_@u.Id', 'Quitar Psicóloga Encargada', '¿Desea revocar a @u.NombreCompleto como Psicóloga Encargada?', 'warning', 'Quitar', '#D97706')">
+                                                            <i class="fa fa-star"></i>
+                                                        </button>
+                                                    </form>
+                                                }
+                                                else
+                                                {
+                                                    <form method="post" asp-action="MarcarEncargada" asp-route-id="@u.Id" class="d-inline" id="formMarcarEnc_@u.Id">
+                                                        @Html.AntiForgeryToken()
+                                                        <button type="button"
+                                                                class="btn btn-icon btn-light btn-sm text-muted"
+                                                                data-bs-toggle="tooltip" title="Designar como Psicóloga Encargada"
+                                                                onclick="confirmAction('formMarcarEnc_@u.Id', 'Designar Psicóloga Encargada', '¿Desea designar a @u.NombreCompleto como Psicóloga Encargada?', 'question', 'Designar', '#D97706')">
+                                                            <i class="fa fa-star-o"></i>
+                                                        </button>
+                                                    </form>
+                                                }
+                                            }
                                         </div>
                                     </td>
                                 </tr>

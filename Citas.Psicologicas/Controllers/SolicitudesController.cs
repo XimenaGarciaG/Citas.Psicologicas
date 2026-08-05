@@ -1,4 +1,5 @@
 using Citas.Psicologicas.Constants;
+using Citas.Psicologicas.DTOs.Citas;
 using Citas.Psicologicas.DTOs.Solicitudes;
 using Citas.Psicologicas.Filters;
 using Citas.Psicologicas.Helpers;
@@ -14,15 +15,18 @@ namespace Citas.Psicologicas.Controllers;
 public class SolicitudesController : Controller
 {
     private readonly ISolicitudService _solicitudService;
+    private readonly ICitaService _citaService;
     private readonly ILocalDataService _localData;
     private readonly ILogger<SolicitudesController> _logger;
 
     public SolicitudesController(
         ISolicitudService solicitudService,
+        ICitaService citaService,
         ILocalDataService localData,
         ILogger<SolicitudesController> logger)
     {
         _solicitudService = solicitudService;
+        _citaService = citaService;
         _localData = localData;
         _logger = logger;
     }
@@ -100,7 +104,7 @@ public class SolicitudesController : Controller
         if (rolSesion == Roles.Psicologo || rolSesion == Roles.Administrador)
         {
             var pendientes = _localData.GetSolicitudesCalendarioPendientes();
-            if (rolSesion == Roles.Psicologo)
+            if (rolSesion == Roles.Psicologo && !SessionHelper.EsPsicologaEncargada(HttpContext.Session, _localData))
             {
                 var idPsicologo = SessionHelper.GetIdUsuario(HttpContext.Session);
                 pendientes = pendientes
@@ -115,11 +119,22 @@ public class SolicitudesController : Controller
 
     // GET: /Solicitudes/Create  (parámetros opcionales desde el calendario de disponibilidad)
     [AuthorizeRole(Roles.Estudiante)]
-    public IActionResult Create(string? idPsicologo, string? nombrePsicologo, string? fechaCita, string? horaInicio, string? horaFin)
+    public async Task<IActionResult> Create(string? idPsicologo, string? nombrePsicologo, string? fechaCita, string? horaInicio, string? horaFin)
     {
+        var token = SessionHelper.GetToken(HttpContext.Session)!;
+        var idEstudiante = SessionHelper.GetIdUsuario(HttpContext.Session) ?? string.Empty;
+
+        if (await VerificarSolicitudUnicaAsync(token, idEstudiante))
+        {
+            TempData["Error"] = "Ya tiene una solicitud o cita en proceso. " +
+                                "Solo podrá solicitar nuevamente cuando alguna de sus citas sea cancelada " +
+                                "o no haya asistido a la sesión.";
+            return RedirectToAction(nameof(Index));
+        }
+
         var vm = new SolicitudCreateViewModel
         {
-            IdEstudiante = SessionHelper.GetIdUsuario(HttpContext.Session) ?? string.Empty,
+            IdEstudiante = idEstudiante,
             IdPsicologo = idPsicologo ?? string.Empty,
             NombrePsicologo = nombrePsicologo ?? string.Empty,
             FechaCita = DateTime.TryParse(fechaCita, out var fc) ? fc : null,
@@ -140,9 +155,22 @@ public class SolicitudesController : Controller
             return View(model);
 
         var token = SessionHelper.GetToken(HttpContext.Session)!;
+        var idEstudiante = SessionHelper.GetIdUsuario(HttpContext.Session) ?? string.Empty;
+
+        // Regla de negocio: un alumno solo puede tener UNA solicitud activa.
+        // Se cancelan/cierran los duplicados existentes y se bloquea la nueva
+        // hasta que alguna de sus citas sea cancelada o no haya asistido.
+        if (await VerificarSolicitudUnicaAsync(token, idEstudiante))
+        {
+            TempData["Error"] = "Ya tiene una solicitud o cita en proceso. " +
+                                "Solo podrá solicitar nuevamente cuando alguna de sus citas sea cancelada " +
+                                "o no haya asistido a la sesión.";
+            return RedirectToAction(nameof(Index));
+        }
+
         var dto = new CreateSolicitudDto
         {
-            IdEstudiante = int.TryParse(SessionHelper.GetIdUsuario(HttpContext.Session), out var idEst) ? idEst : 0,
+            IdEstudiante = int.TryParse(idEstudiante, out var idEst) ? idEst : 0,
             Origen = OrigenSolicitud.Autonomo,
             MotivoConsulta = model.Comentario ?? string.Empty
         };
@@ -156,7 +184,7 @@ public class SolicitudesController : Controller
                 _localData.AddSolicitudCalendario(new SolicitudCalendario
                 {
                     IdSolicitud = result.Data?.Id ?? string.Empty,
-                    IdEstudiante = SessionHelper.GetIdUsuario(HttpContext.Session) ?? string.Empty,
+                    IdEstudiante = idEstudiante,
                     NombreEstudiante = SessionHelper.GetNombreCompleto(HttpContext.Session) ?? string.Empty,
                     IdPsicologo = model.IdPsicologo,
                     NombrePsicologo = model.NombrePsicologo,
@@ -172,6 +200,67 @@ public class SolicitudesController : Controller
 
         TempData["Error"] = result.Message ?? "No se pudo enviar la solicitud.";
         return View(model);
+    }
+
+    /// <summary>
+    /// Regla de negocio de una sola solicitud activa por alumno.
+    /// Cancela/cierra las solicitudes, citas y agendas duplicadas del estudiante
+    /// (conservando la más reciente de cada tipo) y devuelve true si el alumno
+    /// todavía tiene una solicitud o cita en proceso.
+    /// </summary>
+    private async Task<bool> VerificarSolicitudUnicaAsync(string token, string idEstudiante)
+    {
+        var solicitudes = (await _solicitudService.GetAllAsync(token)).Data ?? [];
+        var citas = (await _citaService.GetAllAsync(token)).Data ?? [];
+
+        var misSolicitudes = solicitudes
+            .Where(s => string.Equals(s.IdEstudianteStr, idEstudiante, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var misCitas = citas
+            .Where(c => string.Equals(c.IdEstudianteStr, idEstudiante, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        // Solicitudes pendientes (aún sin cita) ordenadas por fecha, la más reciente primero.
+        var pendientes = misSolicitudes
+            .Where(s => s.Estado == EstadosSolicitud.Pendiente)
+            .OrderByDescending(s => s.FechaSolicitud)
+            .ToList();
+
+        // Citas activas (reservada o confirmada) ordenadas por fecha, la más reciente primero.
+        var citasActivas = misCitas
+            .Where(c => c.Estado is EstadosCita.Reservada or EstadosCita.Confirmada)
+            .OrderByDescending(c => c.Fecha)
+            .ToList();
+
+        // Limpieza de duplicados: cerrar las solicitudes pendientes antiguas.
+        foreach (var duplicada in pendientes.Skip(1))
+        {
+            await _solicitudService.UpdatePrioridadAsync(duplicada.Id, new UpdatePrioridadDto
+            {
+                Prioridad = duplicada.Prioridad,
+                Estado = EstadosSolicitud.Cancelada
+            }, token);
+        }
+
+        // Limpieza de duplicados: cancelar las citas activas antiguas.
+        foreach (var duplicada in citasActivas.Skip(1))
+        {
+            await _citaService.CancelarAsync(duplicada.Id, token);
+        }
+
+        // Limpieza de agendas duplicadas del calendario (respaldo local).
+        var agendas = _localData.GetSolicitudesCalendario()
+            .Where(sc => string.Equals(sc.IdEstudiante, idEstudiante, StringComparison.OrdinalIgnoreCase) && !sc.Atendida)
+            .OrderByDescending(sc => sc.FechaRegistro)
+            .ToList();
+        foreach (var duplicada in agendas.Skip(1))
+        {
+            _localData.MarcarSolicitudCalendarioAtendida(duplicada.Id);
+        }
+
+        // Si aún queda una solicitud pendiente o una cita activa, el alumno está en proceso.
+        return pendientes.Any() || citasActivas.Any();
     }
 
     // POST: /Solicitudes/MarcarAtendida/{id}  (solicitud directa del calendario)

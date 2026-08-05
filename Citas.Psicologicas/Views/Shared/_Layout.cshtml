@@ -1,4 +1,5 @@
 @using Citas.Psicologicas.Constants
+@inject Citas.Psicologicas.Interfaces.ILocalDataService LocalData
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -45,6 +46,8 @@
                 bool isPsico = rol == Roles.Psicologo || rol == "PSICÓLOGO";
                 bool isTutor = rol == Roles.Tutor;
                 bool isEstud = rol == Roles.Estudiante;
+                var idUsuarioLayout = Context.Session.GetString("IdUsuario") ?? "";
+                var esEncargada = isPsico && string.Equals(idUsuarioLayout, LocalData.GetPsicologaEncargadaId(), StringComparison.OrdinalIgnoreCase);
             }
 
             <!-- Dashboard – Todos -->
@@ -76,9 +79,9 @@
                 </a>
             }
 
-            @if (isAdmin || isPsico || isTutor)
+            @if (isAdmin || isTutor || esEncargada)
             {
-                <a href="/Canalizaciones" class="nav-item-link @(currentPath.StartsWith("/canalizaciones") ? "active" : "")">
+                <a href="@(isTutor ? "/Canalizaciones/Create" : "/Canalizaciones")" class="nav-item-link @(currentPath.StartsWith("/canalizaciones") ? "active" : "")">
                     <span class="nav-icon"><i class="fa fa-share-nodes"></i></span>
                     <span class="nav-label">Canalizaciones</span>
                 </a>

@@ -1,41 +1,84 @@
 using Microsoft.AspNetCore.Mvc;
 using Citas.Psicologicas.Constants;
 using Citas.Psicologicas.Filters;
+using Citas.Psicologicas.Helpers;
 using Citas.Psicologicas.Interfaces;
 using Citas.Psicologicas.Models;
+using Citas.Psicologicas.ViewModels.Seguimientos;
 
 namespace Citas.Psicologicas.Controllers;
 
 public class SeguimientosController : Controller
 {
     private readonly ILocalDataService _localData;
+    private readonly ICitaService _citaService;
+    private readonly ILogger<SeguimientosController> _logger;
 
-    public SeguimientosController(ILocalDataService localData)
+    public SeguimientosController(ILocalDataService localData, ICitaService citaService, ILogger<SeguimientosController> logger)
     {
         _localData = localData;
+        _citaService = citaService;
+        _logger = logger;
     }
 
     // GET: /Seguimientos
-    public IActionResult Index(string? estado)
+    public async Task<IActionResult> Index(string? estado)
     {
         ViewBag.PageTitle = "Seguimientos";
         ViewBag.Breadcrumb = new[] { ("Seguimientos", "/Seguimientos") };
 
-        var lista = _localData.GetSeguimientos()
+        var registros = _localData.GetSeguimientos()
             .OrderByDescending(s => s.FechaRegistro)
             .ToList();
 
         if (estado == "Pendientes")
         {
-            lista = lista.Where(s => !s.Programado || s.FechaProgramada is null).ToList();
+            registros = registros.Where(s => !s.Programado || s.FechaProgramada is null).ToList();
         }
         else if (estado == "Programados")
         {
-            lista = lista.Where(s => s.Programado && s.FechaProgramada is not null).ToList();
+            registros = registros.Where(s => s.Programado && s.FechaProgramada is not null).ToList();
         }
 
-        ViewBag.Estado = estado;
-        return View(lista);
+        // Enriquecer con la próxima cita real de cada estudiante (reservada o confirmada en el futuro).
+        var proximas = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            var token = SessionHelper.GetToken(HttpContext.Session);
+            if (!string.IsNullOrEmpty(token))
+            {
+                var citas = (await _citaService.GetAllAsync(token)).Data ?? [];
+                foreach (var cita in citas.Where(c =>
+                             c.Estado is EstadosCita.Reservada or EstadosCita.Confirmada &&
+                             c.Fecha >= DateTime.Today)
+                             .OrderBy(c => c.Fecha))
+                {
+                    if (!string.IsNullOrEmpty(cita.IdEstudianteStr) &&
+                        !proximas.ContainsKey(cita.IdEstudianteStr))
+                    {
+                        proximas[cita.IdEstudianteStr] = cita.Fecha;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "No se pudieron cargar las próximas citas para la vista de seguimientos.");
+        }
+
+        var vm = new SeguimientoIndexViewModel
+        {
+            Estado = estado,
+            Seguimientos = registros.Select(s => new SeguimientoItem
+            {
+                Seguimiento = s,
+                ProximaCita = !string.IsNullOrEmpty(s.IdEstudiante)
+                    ? proximas.GetValueOrDefault(s.IdEstudiante)
+                    : null
+            }).ToList()
+        };
+
+        return View(vm);
     }
 
     // GET: /Seguimientos/Create

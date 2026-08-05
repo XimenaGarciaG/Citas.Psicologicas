@@ -12,5 +12,5 @@ public interface ICitaService
     Task<ApiResponse<CitaDto>> UpdateAsync(string id, UpdateCitaDto dto, string token);
     Task<ApiResponse<bool>> ConfirmarAsync(string id, string token);
     Task<ApiResponse<bool>> CancelarAsync(string id, string token);
-    Task<ApiResponse<bool>> ReagendarAsync(string id, ReagendarCitaDto dto, string token);
+    Task<ApiResponse<CitaDto>> ReagendarAsync(string id, ReagendarCitaDto dto, string token);
 }

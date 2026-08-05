@@ -165,6 +165,27 @@ public class LocalDataService : ILocalDataService
         Save("confirmaciones", items);
     }
 
+    // ─── Reagendas de citas (una por cita) ────────────────────────────────────
+
+    public List<ReagendaRegistro> GetReagendas() => Load("reagendas", new List<ReagendaRegistro>());
+
+    public ReagendaRegistro? GetReagenda(string idCita)
+        => GetReagendas().FirstOrDefault(r => string.Equals(r.IdCita, idCita, StringComparison.OrdinalIgnoreCase));
+
+    public void AddReagenda(ReagendaRegistro reagenda)
+    {
+        var items = GetReagendas();
+        var existing = items.FindIndex(r => string.Equals(r.IdCita, reagenda.IdCita, StringComparison.OrdinalIgnoreCase));
+        if (existing >= 0)
+            items[existing] = reagenda;
+        else
+        {
+            reagenda.Id = items.Count == 0 ? 1 : items.Max(r => r.Id) + 1;
+            items.Add(reagenda);
+        }
+        Save("reagendas", items);
+    }
+
     // ─── Bloqueos de disponibilidad de psicólogas ───────────────────────────────
 
     public List<BloqueoDisponibilidad> GetBloqueos() => Load("disponibilidad", new List<BloqueoDisponibilidad>());
@@ -235,6 +256,14 @@ public class LocalDataService : ILocalDataService
         items.Add(vinculo);
         Save("canalizaciones_solicitud", items);
     }
+
+    // ─── Psicóloga Encargada (usuario designado) ─────────────────────────────
+
+    public string? GetPsicologaEncargadaId()
+        => Load("psicologa_encargada", new PsicologaEncargada()).IdUsuario;
+
+    public void SetPsicologaEncargadaId(string? idUsuario)
+        => Save("psicologa_encargada", new PsicologaEncargada { IdUsuario = idUsuario ?? string.Empty });
 
     // ─── Usuarios locales (contraseñas y estado) ───────────────────────────────
 
@@ -337,12 +366,16 @@ public class LocalDataService : ILocalDataService
             Save("bitacora_pendiente", new List<BitacoraPendiente>());
         if (!File.Exists(FileFor("confirmaciones")))
             Save("confirmaciones", new List<ConfirmacionAsistencia>());
+        if (!File.Exists(FileFor("reagendas")))
+            Save("reagendas", new List<ReagendaRegistro>());
         if (!File.Exists(FileFor("disponibilidad")))
             Save("disponibilidad", new List<BloqueoDisponibilidad>());
         if (!File.Exists(FileFor("solicitudes_calendario")))
             Save("solicitudes_calendario", new List<SolicitudCalendario>());
         if (!File.Exists(FileFor("canalizaciones_solicitud")))
             Save("canalizaciones_solicitud", new List<CanalizacionSolicitud>());
+        if (!File.Exists(FileFor("psicologa_encargada")))
+            Save("psicologa_encargada", new PsicologaEncargada());
         if (!File.Exists(FileFor("usuarios_local")))
             Save("usuarios_local", new List<UsuarioLocal>());
         if (!File.Exists(FileFor("reset_tokens")))

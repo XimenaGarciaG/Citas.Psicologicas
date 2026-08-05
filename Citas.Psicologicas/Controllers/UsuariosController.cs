@@ -66,6 +66,7 @@ public class UsuariosController : Controller
             FiltroEstado = estado
         };
 
+        ViewBag.IdPsicologaEncargada = _localData.GetPsicologaEncargadaId() ?? string.Empty;
         ViewBag.PageTitle = "Gestión de Usuarios";
         return View(vm);
     }
@@ -211,6 +212,41 @@ public class UsuariosController : Controller
         var nuevoEstado = !result.Data.Activo;
         _localData.SetUsuarioActivoLocal(id, nuevoEstado);
         TempData["Success"] = nuevoEstado ? "Usuario activado correctamente." : "Usuario desactivado correctamente.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    // POST: /Usuarios/MarcarEncargada/{id}  (designa a una psicóloga como Psicóloga Encargada)
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> MarcarEncargada(string id)
+    {
+        var token = SessionHelper.GetToken(HttpContext.Session)!;
+        var result = await _usuarioService.GetByIdAsync(id, token);
+
+        if (!result.Success || result.Data is null)
+        {
+            TempData["Error"] = "Usuario no encontrado.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (!string.Equals(result.Data.Rol, Roles.Psicologo, StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["Error"] = "Solo una usuaria con rol Psicólogo/a puede ser designada como Psicóloga Encargada.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        _localData.SetPsicologaEncargadaId(id);
+        TempData["Success"] = $"{result.Data.NombreCompleto} ha sido designada como Psicóloga Encargada.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    // POST: /Usuarios/QuitarEncargada  (revoca la designación de Psicóloga Encargada)
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult QuitarEncargada()
+    {
+        _localData.SetPsicologaEncargadaId(null);
+        TempData["Success"] = "La designación de Psicóloga Encargada fue revocada.";
         return RedirectToAction(nameof(Index));
     }
 

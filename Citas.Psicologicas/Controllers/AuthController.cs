@@ -12,15 +12,18 @@ namespace Citas.Psicologicas.Controllers;
 public class AuthController : Controller
 {
     private readonly IAuthService _authService;
+    private readonly IUsuarioService _usuarioService;
     private readonly ILocalDataService _localData;
     private readonly ILogger<AuthController> _logger;
 
     public AuthController(
         IAuthService authService,
+        IUsuarioService usuarioService,
         ILocalDataService localData,
         ILogger<AuthController> logger)
     {
         _authService = authService;
+        _usuarioService = usuarioService;
         _localData = localData;
         _logger = logger;
     }
@@ -56,9 +59,18 @@ public class AuthController : Controller
             return View(model);
         }
 
-        var nombreMostrar = string.IsNullOrWhiteSpace(result.Data.NombreCompleto) 
-            ? model.Correo.Split('@')[0] 
+        var nombreMostrar = string.IsNullOrWhiteSpace(result.Data.NombreCompleto)
+            ? model.Correo.Split('@')[0]
             : result.Data.NombreCompleto;
+
+        // La API no siempre devuelve el nombre completo en el login; se consulta por ID.
+        if (string.IsNullOrWhiteSpace(result.Data.NombreCompleto) &&
+            !string.IsNullOrEmpty(result.Data.GetIdUsuarioString()))
+        {
+            var perfil = (await _usuarioService.GetByIdAsync(result.Data.GetIdUsuarioString(), result.Data.Token)).Data;
+            if (perfil is not null && !string.IsNullOrWhiteSpace(perfil.NombreCompleto))
+                nombreMostrar = perfil.NombreCompleto;
+        }
 
         SessionHelper.SetSession(
             HttpContext.Session,

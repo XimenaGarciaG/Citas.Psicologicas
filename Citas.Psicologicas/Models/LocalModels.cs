@@ -76,13 +76,29 @@ public class BitacoraPendiente
     public string Estado => Confirmada ? "CONFIRMADA" : "PENDIENTE";
 }
 
-/// <summary>Confirmación electrónica de asistencia del estudiante (respaldo local)</summary>
+/// <summary>Registro de confirmación electrónica de asistencia del estudiante (respaldo local)</summary>
 public class ConfirmacionAsistencia
 {
     public string IdCita { get; set; } = string.Empty;
     public string IdEstudiante { get; set; } = string.Empty;
     public bool Confirmada { get; set; }
     public DateTime FechaConfirmacion { get; set; }
+}
+
+/// <summary>Registro de reagenda de una cita (un alumno solo puede reagendar una vez por cita)</summary>
+public class ReagendaRegistro
+{
+    public int Id { get; set; }
+    public string IdCita { get; set; } = string.Empty;
+    public string IdSolicitud { get; set; } = string.Empty;
+    public string IdEstudiante { get; set; } = string.Empty;
+    public string NombreEstudiante { get; set; } = string.Empty;
+    public DateTime FechaAnterior { get; set; }
+    public string HoraInicioAnterior { get; set; } = string.Empty;
+    public DateTime NuevaFecha { get; set; }
+    public string NuevaHoraInicio { get; set; } = string.Empty;
+    public string? MotivoReagenda { get; set; }
+    public DateTime FechaRegistro { get; set; } = DateTime.Now;
 }
 
 /// <summary>Bloqueo de disponibilidad de una psicóloga para un horario específico (respaldo local)</summary>
@@ -112,6 +128,12 @@ public class SolicitudCalendario
     public string HoraFin { get; set; } = string.Empty;
     public bool Atendida { get; set; }
     public DateTime FechaRegistro { get; set; } = DateTime.Now;
+}
+
+/// <summary>Marca local del usuario designado como Psicóloga Encargada (respaldo local)</summary>
+public class PsicologaEncargada
+{
+    public string IdUsuario { get; set; } = string.Empty;
 }
 
 /// <summary>Vínculo entre una canalización del tutor y la solicitud de atención generada por ella</summary>

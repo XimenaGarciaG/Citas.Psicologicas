@@ -36,17 +36,20 @@ public class CanalizacionesController : Controller
 
     public async Task<IActionResult> Index(string? busqueda, string? estado)
     {
+        var rol = SessionHelper.GetRol(HttpContext.Session);
+
+        // El tutor solo ve la vista de creación de canalizaciones.
+        if (rol == Roles.Tutor)
+            return RedirectToAction(nameof(Create));
+
+        // Solo la Psicóloga Encargada y el Administrador visualizan el listado.
+        if (rol == Roles.Psicologo && !SessionHelper.EsPsicologaEncargada(HttpContext.Session, _localData))
+            return RedirectToAction("AccessDenied", "Error");
+
         var token = SessionHelper.GetToken(HttpContext.Session)!;
         var result = await _canalizacionService.GetAllAsync(token);
 
         var canalizaciones = result.Data ?? [];
-
-        var rol = SessionHelper.GetRol(HttpContext.Session);
-        if (rol == Roles.Tutor)
-        {
-            var idTutor = SessionHelper.GetIdUsuario(HttpContext.Session);
-            canalizaciones = canalizaciones.Where(c => string.Equals(c.IdTutor?.ToString(), idTutor, StringComparison.OrdinalIgnoreCase)).ToList();
-        }
 
         if (!string.IsNullOrEmpty(busqueda))
             canalizaciones = canalizaciones.Where(c =>

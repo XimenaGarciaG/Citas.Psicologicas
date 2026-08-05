@@ -10,7 +10,7 @@
             <h1 class="page-header-title"><i class="fa fa-share-nodes me-2"></i>Canalizaciones</h1>
             <p class="page-header-subtitle">@Model.Canalizaciones.Count canalización(es) registrada(s)</p>
         </div>
-        @if (rol == Roles.Tutor || rol == Roles.Administrador)
+        @if (rol == Roles.Tutor)
         {
             <a href="/Canalizaciones/Create" class="btn btn-primary">
                 <i class="fa fa-plus me-1"></i> Nueva Canalización
@@ -61,17 +61,31 @@
                             <th>Motivo</th>
                             <th>Estado</th>
                             <th>Fecha</th>
+                            <th>Solicitud generada</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var c in Model.Canalizaciones)
                         {
+                            var vinculo = Model.VinculoDe(c.Id);
                             <tr>
                                 <td class="fw-600">@c.NombreEstudiante</td>
                                 <td class="text-muted">@c.NombreTutor</td>
                                 <td class="text-muted text-truncate-2" style="max-width:250px">@c.Motivo</td>
                                 <td><span class="badge-pill badge-@c.Estado?.ToLower()">@c.Estado</span></td>
                                 <td class="text-muted small">@(c.FechaCanalizacion?.ToString("dd/MM/yyyy") ?? "—")</td>
+                                <td>
+                                    @if (vinculo is not null)
+                                    {
+                                        <a href="/Solicitudes/Details/@vinculo.IdSolicitud" class="badge-pill badge-primary text-decoration-none">
+                                            <i class="fa fa-arrow-right me-1"></i>Solicitud #@vinculo.IdSolicitud
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small">Sin solicitud</span>
+                                    }
+                                </td>
                             </tr>
                         }
                     </tbody>

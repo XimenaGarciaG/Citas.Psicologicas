@@ -33,6 +33,12 @@
                     </div>
 
                     <div class="mb-3">
+                        <label asp-for="Notas" class="form-label">Notas de la sesión</label>
+                        <textarea asp-for="Notas" class="form-control" rows="4"
+                                  placeholder="Anotaciones sobre la sesión y la situación del estudiante"></textarea>
+                    </div>
+
+                    <div class="mb-3">
                         <label asp-for="FechaProgramada" class="form-label">Fecha programada (opcional)</label>
                         <input asp-for="FechaProgramada" class="form-control" type="date" />
                         <small class="text-muted">Si no se especifica, el seguimiento queda como pendiente.</small>

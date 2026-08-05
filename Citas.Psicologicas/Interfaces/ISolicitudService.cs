@@ -9,5 +9,5 @@ public interface ISolicitudService
     Task<ApiResponse<List<SolicitudDto>>> GetAllAsync(string token, string? estado = null);
     Task<ApiResponse<SolicitudDto>> GetByIdAsync(string id, string token);
     Task<ApiResponse<SolicitudDto>> CreateAsync(CreateSolicitudDto dto, string token);
-    Task<ApiResponse<UpdatePrioridadResponseDto>> UpdatePrioridadAsync(string id, string token);
+    Task<ApiResponse<UpdatePrioridadResponseDto>> UpdatePrioridadAsync(string id, UpdatePrioridadDto dto, string token);
 }

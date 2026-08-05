@@ -99,18 +99,8 @@ public class NotificacionesController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult MarcarEnviado(int id)
     {
-        var lista = _localData.GetNotificaciones();
-        var item = lista.FirstOrDefault(n => n.Id == id);
-        if (item is not null)
-        {
-            item.Fecha = DateTime.Now;
-            TempData["Success"] = "Notificación marcada como enviada.";
-        }
-        else
-        {
-            TempData["Error"] = "Notificación no encontrada.";
-        }
-
+        _localData.MarcarNotificacionEnviada(id);
+        TempData["Success"] = "Notificación marcada como enviada.";
         return RedirectToAction(nameof(Index));
     }
 

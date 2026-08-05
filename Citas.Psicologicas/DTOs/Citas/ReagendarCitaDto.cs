@@ -8,4 +8,5 @@ public class ReagendarCitaDto
     public string HoraInicio { get; set; } = string.Empty;
     public string HoraFin { get; set; } = string.Empty;
     public int MinutosTolerancia { get; set; } = 15;
+    public string? MotivoReagenda { get; set; }
 }

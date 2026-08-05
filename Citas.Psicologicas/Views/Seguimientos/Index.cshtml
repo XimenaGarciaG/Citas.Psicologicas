@@ -52,7 +52,9 @@
                         <tr>
                             <th>Fecha registro</th>
                             <th>Estudiante</th>
+                            <th>Psicólogo/a</th>
                             <th>Motivo</th>
+                            <th>Notas de la sesión</th>
                             <th>Estado</th>
                             <th>Fecha programada</th>
                         </tr>
@@ -63,7 +65,13 @@
                             <tr>
                                 <td class="text-nowrap">@s.FechaRegistro.ToString("dd/MM/yyyy")</td>
                                 <td class="fw-600">@s.NombreEstudiante</td>
+                                <td class="text-muted">@(s.NombrePsicologo ?? "—")</td>
                                 <td class="text-muted">@(s.Motivo ?? "—")</td>
+                                <td class="text-muted small" style="max-width:220px">
+                                    @if (!string.IsNullOrEmpty(s.Notas))
+                                    { <span class="text-truncate-2" title="@s.Notas">@s.Notas</span> }
+                                    else { <span>—</span> }
+                                </td>
                                 <td>
                                     @if (s.Programado && s.FechaProgramada is not null)
                                     {

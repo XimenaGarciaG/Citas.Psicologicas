@@ -46,9 +46,16 @@ public class BitacoraController : Controller
         if (fecha.HasValue)
             registros = registros.Where(r => r.FechaCita?.Date == fecha.Value.Date).ToList();
 
+        // Registros enviados por la psicóloga y pendientes de confirmación del estudiante.
+        var pendientes = _localData.GetBitacorasPendientes()
+            .Where(b => !b.Confirmada)
+            .OrderByDescending(b => b.FechaEnvio)
+            .ToList();
+
         var vm = new BitacoraIndexViewModel
         {
             Registros = registros,
+            Pendientes = pendientes,
             FiltroBusqueda = busqueda,
             FiltroFecha = fecha
         };
@@ -85,41 +92,36 @@ public class BitacoraController : Controller
             return View(model);
         }
 
-        var dto = new CreateBitacoraDto
+        var citaResult = await _citaService.GetByIdAsync(model.IdCita, token);
+        if (!citaResult.Success || citaResult.Data is null)
         {
-            IdCita = model.IdCita,
-            Asistencia = model.Asistencia,
-            Observaciones = model.Observaciones ?? string.Empty,
-            AcuerdoSeguimiento = model.AcuerdoSeguimiento
-        };
-
-        var result = await _bitacoraService.CreateAsync(dto, token);
-        if (result.Success)
-        {
-            // Si se requiere seguimiento, se registra automáticamente en el módulo de Seguimientos.
-            if (model.AcuerdoSeguimiento && !string.IsNullOrEmpty(model.IdCita))
-            {
-                var cita = await _citaService.GetByIdAsync(model.IdCita, token);
-                if (cita.Success && cita.Data is not null)
-                {
-                    _localData.AddSeguimiento(new SeguimientoRegistro
-                    {
-                        IdCita = cita.Data.Id,
-                        IdSolicitud = cita.Data.IdSolicitud?.ToString() ?? string.Empty,
-                        IdEstudiante = cita.Data.IdEstudianteStr,
-                        NombreEstudiante = cita.Data.NombreEstudiante ?? string.Empty,
-                        Motivo = "Acuerdo de seguimiento registrado en bitácora",
-                        Programado = false
-                    });
-                }
-            }
-
-            TempData["Success"] = "Asistencia registrada correctamente.";
+            TempData["Error"] = "No se encontró la cita seleccionada.";
             return RedirectToAction(nameof(Index));
         }
 
-        TempData["Error"] = result.Message ?? "No se pudo registrar la asistencia.";
-        return View(model);
+        var cita = citaResult.Data;
+
+        // Flujo de 2 fases: la psicóloga llena y envía el registro; el estudiante
+        // lo confirma y solo entonces se registra en la API (bitácora).
+        _localData.AddBitacoraPendiente(new BitacoraPendiente
+        {
+            IdCita = cita.Id,
+            IdSolicitud = cita.IdSolicitud?.ToString() ?? string.Empty,
+            IdEstudiante = cita.IdEstudianteStr,
+            IdPsicologo = cita.IdPsicologoStr,
+            NombreEstudiante = cita.NombreEstudiante ?? string.Empty,
+            NombrePsicologo = cita.NombrePsicologo ?? string.Empty,
+            Asistencia = model.Asistencia,
+            Observaciones = model.Observaciones ?? string.Empty,
+            AcuerdoSeguimiento = model.AcuerdoSeguimiento,
+            FechaEnvio = DateTime.Now
+        });
+
+        _logger.LogInformation("Bitácora de la cita {Cita} enviada por {Psicologo}; pendiente de confirmación del estudiante",
+            cita.Id, SessionHelper.GetNombreCompleto(HttpContext.Session));
+
+        TempData["Success"] = "Registro enviado. El estudiante debe confirmarlo para que quede registrado en la bitácora.";
+        return RedirectToAction(nameof(Index));
     }
 
     // GET: /Bitacora/Details/{id}

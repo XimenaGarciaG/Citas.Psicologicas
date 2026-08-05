@@ -25,6 +25,12 @@
                         No registre información clínica ni diagnósticos.
                     </div>
 
+                    <div class="alert alert-info">
+                        <i class="fa fa-clock me-2"></i>
+                        Al enviar, el registro quedará <strong>pendiente de confirmación</strong> del estudiante.
+                        Solo se registrará en la bitácora una vez que el estudiante lo confirme.
+                    </div>
+
                     <form asp-controller="Bitacora" asp-action="Create" method="post" data-loading="Guardando registro...">
                         @Html.AntiForgeryToken()
 
@@ -86,7 +92,7 @@
                         <div class="d-flex justify-content-end gap-2">
                             <a href="/Bitacora" class="btn btn-light px-4">Cancelar</a>
                             <button type="submit" class="btn btn-primary px-4">
-                                <i class="fa fa-save me-1"></i> Guardar Registro
+                                <i class="fa fa-paper-plane me-1"></i> Enviar al estudiante
                             </button>
                         </div>
                     </form>

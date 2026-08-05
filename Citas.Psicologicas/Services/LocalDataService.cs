@@ -86,6 +86,17 @@ public class LocalDataService : ILocalDataService
         Save("notificaciones", items);
     }
 
+    public void MarcarNotificacionEnviada(int id)
+    {
+        var items = GetNotificaciones();
+        var idx = items.FindIndex(n => n.Id == id);
+        if (idx >= 0)
+        {
+            items[idx].Fecha = DateTime.Now;
+            Save("notificaciones", items);
+        }
+    }
+
     // ─── Seguimientos ──────────────────────────────────────────────────────────
 
     public List<SeguimientoRegistro> GetSeguimientos() => Load("seguimientos", new List<SeguimientoRegistro>());
@@ -106,6 +117,33 @@ public class LocalDataService : ILocalDataService
         {
             items[idx] = seguimiento;
             Save("seguimientos", items);
+        }
+    }
+
+    // ─── Bitácora pendiente de confirmación ──────────────────────────────────
+
+    public List<BitacoraPendiente> GetBitacorasPendientes()
+        => Load("bitacora_pendiente", new List<BitacoraPendiente>());
+
+    public BitacoraPendiente? GetBitacoraPendiente(string idCita)
+        => GetBitacorasPendientes().FirstOrDefault(b => b.IdCita == idCita);
+
+    public void AddBitacoraPendiente(BitacoraPendiente bitacora)
+    {
+        var items = GetBitacorasPendientes();
+        bitacora.Id = items.Count == 0 ? 1 : items.Max(b => b.Id) + 1;
+        items.Add(bitacora);
+        Save("bitacora_pendiente", items);
+    }
+
+    public void UpdateBitacoraPendiente(BitacoraPendiente bitacora)
+    {
+        var items = GetBitacorasPendientes();
+        var idx = items.FindIndex(b => b.Id == bitacora.Id);
+        if (idx >= 0)
+        {
+            items[idx] = bitacora;
+            Save("bitacora_pendiente", items);
         }
     }
 
@@ -183,6 +221,19 @@ public class LocalDataService : ILocalDataService
             items[idx].Atendida = true;
             Save("solicitudes_calendario", items);
         }
+    }
+
+    // ─── Vínculos canalización → solicitud ──────────────────────────────────
+
+    public List<CanalizacionSolicitud> GetCanalizacionesSolicitudes()
+        => Load("canalizaciones_solicitud", new List<CanalizacionSolicitud>());
+
+    public void AddCanalizacionSolicitud(CanalizacionSolicitud vinculo)
+    {
+        var items = GetCanalizacionesSolicitudes();
+        vinculo.Id = items.Count == 0 ? 1 : items.Max(v => v.Id) + 1;
+        items.Add(vinculo);
+        Save("canalizaciones_solicitud", items);
     }
 
     // ─── Usuarios locales (contraseñas y estado) ───────────────────────────────
@@ -282,12 +333,16 @@ public class LocalDataService : ILocalDataService
             Save("notificaciones", new List<NotificacionRegistro>());
         if (!File.Exists(FileFor("seguimientos")))
             Save("seguimientos", new List<SeguimientoRegistro>());
+        if (!File.Exists(FileFor("bitacora_pendiente")))
+            Save("bitacora_pendiente", new List<BitacoraPendiente>());
         if (!File.Exists(FileFor("confirmaciones")))
             Save("confirmaciones", new List<ConfirmacionAsistencia>());
         if (!File.Exists(FileFor("disponibilidad")))
             Save("disponibilidad", new List<BloqueoDisponibilidad>());
         if (!File.Exists(FileFor("solicitudes_calendario")))
             Save("solicitudes_calendario", new List<SolicitudCalendario>());
+        if (!File.Exists(FileFor("canalizaciones_solicitud")))
+            Save("canalizaciones_solicitud", new List<CanalizacionSolicitud>());
         if (!File.Exists(FileFor("usuarios_local")))
             Save("usuarios_local", new List<UsuarioLocal>());
         if (!File.Exists(FileFor("reset_tokens")))

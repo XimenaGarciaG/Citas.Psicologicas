@@ -222,11 +222,16 @@ public class SolicitudesController : Controller
         }
 
         var token = SessionHelper.GetToken(HttpContext.Session)!;
-        var result = await _solicitudService.UpdatePrioridadAsync(model.IdSolicitud, token);
+        var result = await _solicitudService.UpdatePrioridadAsync(model.IdSolicitud, new UpdatePrioridadDto
+        {
+            Prioridad = model.Prioridad,
+            Observaciones = model.Observaciones,
+            Estado = model.Estado
+        }, token);
         if (result.Success)
-            TempData["Success"] = $"Prioridad recalculada exitosamente por motor Triage: {result.Data?.PrioridadCalculada ?? "ALTA"}.";
+            TempData["Success"] = $"Prioridad asignada exitosamente: {result.Data?.PrioridadCalculada ?? model.Prioridad}.";
         else
-            TempData["Error"] = result.Message ?? "No se pudo recalcular la prioridad.";
+            TempData["Error"] = result.Message ?? "No se pudo asignar la prioridad.";
 
         return RedirectToAction(nameof(Details), new { id = model.IdSolicitud });
     }

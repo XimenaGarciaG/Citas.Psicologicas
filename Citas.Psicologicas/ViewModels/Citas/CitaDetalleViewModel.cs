@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using Citas.Psicologicas.Constants;
 using Citas.Psicologicas.DTOs.Citas;
+using Citas.Psicologicas.Models;
 
 namespace Citas.Psicologicas.ViewModels.Citas;
 
@@ -38,4 +39,29 @@ public class CitaDetalleViewModel
     public bool AsistenciaConfirmada { get; set; }
 
     public DateTime? FechaConfirmacion { get; set; }
+
+    // ─── Seguimiento de la sesión (psicóloga) ───────────────────────────────
+
+    /// <summary>Seguimiento existente ligado a la cita (si lo hay)</summary>
+    public SeguimientoRegistro? Seguimiento { get; set; }
+
+    /// <summary>Notas de la sesión registradas por la psicóloga</summary>
+    [StringLength(2000)]
+    [DataType(DataType.MultilineText)]
+    [Display(Name = "Notas de la sesión")]
+    public string? NotasSesion { get; set; }
+
+    /// <summary>Indica si el estudiante requiere próxima cita</summary>
+    [Display(Name = "¿Requiere próxima cita?")]
+    public bool RequiereProximaCita { get; set; }
+
+    /// <summary>Fecha sugerida para la próxima cita</summary>
+    [DataType(DataType.Date)]
+    [Display(Name = "Próxima cita")]
+    public DateTime? FechaProximaCita { get; set; }
+
+    // ─── Bitácora pendiente de confirmación (estudiante) ────────────────────
+
+    /// <summary>Bitácora enviada por la psicóloga pendiente de confirmación del estudiante</summary>
+    public BitacoraPendiente? BitacoraPendiente { get; set; }
 }

@@ -48,10 +48,32 @@ public class SeguimientoRegistro
     public string IdSolicitud { get; set; } = string.Empty;
     public string IdEstudiante { get; set; } = string.Empty;
     public string NombreEstudiante { get; set; } = string.Empty;
+    public string IdPsicologo { get; set; } = string.Empty;
+    public string NombrePsicologo { get; set; } = string.Empty;
     public string? Motivo { get; set; }
+    public string? Notas { get; set; }
     public bool Programado { get; set; }
     public DateTime? FechaProgramada { get; set; }
     public DateTime FechaRegistro { get; set; } = DateTime.Now;
+}
+
+/// <summary>Bitácora enviada por la psicóloga pendiente de confirmación del estudiante (respaldo local)</summary>
+public class BitacoraPendiente
+{
+    public int Id { get; set; }
+    public string IdCita { get; set; } = string.Empty;
+    public string IdSolicitud { get; set; } = string.Empty;
+    public string IdEstudiante { get; set; } = string.Empty;
+    public string IdPsicologo { get; set; } = string.Empty;
+    public string NombreEstudiante { get; set; } = string.Empty;
+    public string NombrePsicologo { get; set; } = string.Empty;
+    public bool Asistencia { get; set; }
+    public string Observaciones { get; set; } = string.Empty;
+    public bool AcuerdoSeguimiento { get; set; }
+    public DateTime FechaEnvio { get; set; } = DateTime.Now;
+    public bool Confirmada { get; set; }
+    public DateTime? FechaConfirmacion { get; set; }
+    public string Estado => Confirmada ? "CONFIRMADA" : "PENDIENTE";
 }
 
 /// <summary>Confirmación electrónica de asistencia del estudiante (respaldo local)</summary>
@@ -89,5 +111,19 @@ public class SolicitudCalendario
     public string HoraInicio { get; set; } = string.Empty;
     public string HoraFin { get; set; } = string.Empty;
     public bool Atendida { get; set; }
+    public DateTime FechaRegistro { get; set; } = DateTime.Now;
+}
+
+/// <summary>Vínculo entre una canalización del tutor y la solicitud de atención generada por ella</summary>
+public class CanalizacionSolicitud
+{
+    public int Id { get; set; }
+    public string IdCanalizacion { get; set; } = string.Empty;
+    public string IdSolicitud { get; set; } = string.Empty;
+    public string IdEstudiante { get; set; } = string.Empty;
+    public string NombreEstudiante { get; set; } = string.Empty;
+    public string IdTutor { get; set; } = string.Empty;
+    public string NombreTutor { get; set; } = string.Empty;
+    public string Motivo { get; set; } = string.Empty;
     public DateTime FechaRegistro { get; set; } = DateTime.Now;
 }

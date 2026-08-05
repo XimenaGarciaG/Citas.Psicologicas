@@ -158,6 +158,95 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Seguimiento de la sesión (psicóloga / admin) -->
+            @if (rol == Roles.Administrador || rol == Roles.Psicologo)
+            {
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h2 class="card-title"><i class="fa fa-list-check me-1"></i>Seguimiento de la sesión</h2>
+                    </div>
+                    <div class="card-body">
+                        <form asp-action="GuardarSeguimiento" asp-route-id="@Model.Cita.Id" method="post">
+                            @Html.AntiForgeryToken()
+                            <div class="mb-3">
+                                <label asp-for="NotasSesion" class="form-label"></label>
+                                <textarea asp-for="NotasSesion" class="form-control" rows="4"
+                                          placeholder="Anotaciones sobre la sesión y la situación del estudiante"></textarea>
+                                <span asp-validation-for="NotasSesion" class="text-danger small"></span>
+                            </div>
+                            <div class="form-check mb-3">
+                                <input asp-for="RequiereProximaCita" class="form-check-input" type="checkbox" id="chkProxima">
+                                <label asp-for="RequiereProximaCita" class="form-check-label">¿Requiere próxima cita?</label>
+                            </div>
+                            <div class="mb-3" id="divFechaProxima" style="display:@(Model.RequiereProximaCita ? "block" : "none")">
+                                <label asp-for="FechaProximaCita" class="form-label"></label>
+                                <input asp-for="FechaProximaCita" class="form-control" type="date"
+                                       min="@DateTime.Today.AddDays(1).ToString("yyyy-MM-dd")">
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fa fa-save me-1"></i> Guardar seguimiento
+                            </button>
+                        </form>
+
+                        @if (Model.Seguimiento is not null && Model.Seguimiento.Programado && Model.Seguimiento.FechaProgramada.HasValue)
+                        {
+                            <hr>
+                            <form asp-action="AgendarProximaCita" asp-route-id="@Model.Cita.Id" method="post">
+                                @Html.AntiForgeryToken()
+                                <span class="badge-pill badge-confirmada mb-2 d-inline-block">
+                                    Próxima cita: @Model.Seguimiento.FechaProgramada.Value.ToString("dd/MM/yyyy")
+                                </span>
+                                <button type="submit" class="btn btn-warning w-100 mt-2">
+                                    <i class="fa fa-calendar-plus me-1"></i> Agendar próxima cita
+                                </button>
+                            </form>
+                        }
+                    </div>
+                </div>
+            }
+
+            <!-- Bitácora pendiente de confirmación (estudiante) -->
+            @if (rol == Roles.Estudiante && Model.BitacoraPendiente is not null)
+            {
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h2 class="card-title"><i class="fa fa-book-open me-1"></i>Bitácora por confirmar</h2>
+                    </div>
+                    <div class="card-body">
+                        @if (!Model.BitacoraPendiente.Confirmada)
+                        {
+                            <p class="mb-2">
+                                La psicóloga registró tu asistencia. Confírmala para que quede en la bitácora.
+                            </p>
+                            <div class="alert @(Model.BitacoraPendiente.Asistencia ? "alert-success" : "alert-danger") py-2">
+                                <i class="fa @(Model.BitacoraPendiente.Asistencia ? "fa-check" : "fa-xmark") me-1"></i>
+                                <strong>@(Model.BitacoraPendiente.Asistencia ? "Asististe" : "No asististe")</strong>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(Model.BitacoraPendiente.Observaciones))
+                            {
+                                <p class="text-muted small">Observaciones: @Model.BitacoraPendiente.Observaciones</p>
+                            }
+                            <form asp-action="ConfirmarBitacora" asp-route-id="@Model.Cita.Id" method="post" id="formConfirmarBitacora">
+                                @Html.AntiForgeryToken()
+                                <button type="button" class="btn btn-success w-100"
+                                        onclick="confirmAction('formConfirmarBitacora', 'Confirmar bitácora', '¿Confirma que este registro de asistencia es correcto?', 'question', 'Sí, confirmar', '#059669')">
+                                    <i class="fa fa-user-check me-1"></i> Confirmar y registrar bitácora
+                                </button>
+                            </form>
+                        }
+                        else
+                        {
+                            <div class="alert alert-success py-2">
+                                <i class="fa fa-check me-1"></i> Bitácora confirmada
+                                @(Model.BitacoraPendiente.FechaConfirmacion.HasValue
+                                    ? $"el {Model.BitacoraPendiente.FechaConfirmacion.Value:dd/MM/yyyy HH:mm}"
+                                    : "")
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
         </div>
     </div>
 </div>
@@ -203,3 +292,16 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        var chkProxima = document.getElementById('chkProxima');
+        var divFechaProxima = document.getElementById('divFechaProxima');
+        if (chkProxima && divFechaProxima) {
+            chkProxima.addEventListener('change', function () {
+                divFechaProxima.style.display = this.checked ? 'block' : 'none';
+            });
+        }
+    </script>
+}

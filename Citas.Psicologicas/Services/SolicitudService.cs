@@ -29,6 +29,6 @@ public class SolicitudService : BaseApiService, ISolicitudService
         => await PostAsync<SolicitudDto>(ApiRoutes.Solicitudes, dto, token);
 
     /// <inheritdoc/>
-    public async Task<ApiResponse<UpdatePrioridadResponseDto>> UpdatePrioridadAsync(string id, string token)
-        => await PutAsync<UpdatePrioridadResponseDto>(string.Format(ApiRoutes.SolicitudPrioridad, id), new { }, token);
+    public async Task<ApiResponse<UpdatePrioridadResponseDto>> UpdatePrioridadAsync(string id, UpdatePrioridadDto dto, string token)
+        => await PutAsync<UpdatePrioridadResponseDto>(string.Format(ApiRoutes.SolicitudPrioridad, id), dto, token);
 }

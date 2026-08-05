@@ -1,4 +1,5 @@
 using Citas.Psicologicas.Constants;
+using Citas.Psicologicas.DTOs.Bitacora;
 using Citas.Psicologicas.DTOs.Citas;
 using Citas.Psicologicas.DTOs.Notificaciones;
 using Citas.Psicologicas.DTOs.Solicitudes;
@@ -19,6 +20,7 @@ public class CitasController : Controller
     private readonly ISolicitudService _solicitudService;
     private readonly IUsuarioService _usuarioService;
     private readonly INotificacionService _notificacionService;
+    private readonly IBitacoraService _bitacoraService;
     private readonly ILocalDataService _localData;
     private readonly ILogger<CitasController> _logger;
 
@@ -27,6 +29,7 @@ public class CitasController : Controller
         ISolicitudService solicitudService,
         IUsuarioService usuarioService,
         INotificacionService notificacionService,
+        IBitacoraService bitacoraService,
         ILocalDataService localData,
         ILogger<CitasController> logger)
     {
@@ -34,6 +37,7 @@ public class CitasController : Controller
         _solicitudService = solicitudService;
         _usuarioService = usuarioService;
         _notificacionService = notificacionService;
+        _bitacoraService = bitacoraService;
         _localData = localData;
         _logger = logger;
     }
@@ -267,6 +271,20 @@ public class CitasController : Controller
             vm.FechaConfirmacion = confirmacion.FechaConfirmacion;
         }
 
+        // Seguimiento de la sesión ligado a la cita (si existe) y su contenido editable.
+        var seguimiento = _localData.GetSeguimientos()
+            .FirstOrDefault(s => string.Equals(s.IdCita, cita.Id, StringComparison.OrdinalIgnoreCase));
+        vm.Seguimiento = seguimiento;
+        if (seguimiento is not null)
+        {
+            vm.NotasSesion = seguimiento.Notas;
+            vm.RequiereProximaCita = seguimiento.Programado && seguimiento.FechaProgramada.HasValue;
+            vm.FechaProximaCita = seguimiento.FechaProgramada;
+        }
+
+        // Bitácora enviada por la psicóloga, pendiente de confirmación del estudiante.
+        vm.BitacoraPendiente = _localData.GetBitacoraPendiente(cita.Id);
+
         // ¿El estudiante puede cancelar su propia cita? Solo dentro de la ventana configurada.
         if (rol == Roles.Estudiante && string.Equals(cita.IdEstudianteStr, idUsuario, StringComparison.OrdinalIgnoreCase))
         {
@@ -493,6 +511,13 @@ public class CitasController : Controller
     public async Task<IActionResult> Confirmar(string id)
     {
         var token = SessionHelper.GetToken(HttpContext.Session)!;
+        var cita = (await _citaService.GetByIdAsync(id, token)).Data;
+        if (cita is null || !PuedeOperarCita(cita, SessionHelper.GetRol(HttpContext.Session), SessionHelper.GetIdUsuario(HttpContext.Session)))
+        {
+            TempData["Error"] = "No tiene permisos para confirmar esta cita.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
         var result = await _citaService.ConfirmarAsync(id, token);
         TempData[result.Success ? "Success" : "Error"] =
             result.Success ? "Cita confirmada exitosamente." : (result.Message ?? "No se pudo confirmar la cita.");
@@ -525,6 +550,16 @@ public class CitasController : Controller
                 cita.Fecha <= DateTime.Now.AddHours(config.VentanaCancelacionHoras))
             {
                 TempData["Error"] = "No es posible cancelar esta cita. Verifique las reglas de cancelación.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+        }
+        else if (rol == Roles.Psicologo)
+        {
+            // La psicóloga solo puede cancelar las citas asignadas a ella (misma regla que Details).
+            var cita = (await _citaService.GetByIdAsync(id, token)).Data;
+            if (!PuedeOperarCita(cita, rol, idUsuario))
+            {
+                TempData["Error"] = "No tiene permisos para cancelar esta cita.";
                 return RedirectToAction(nameof(Details), new { id });
             }
         }
@@ -569,7 +604,14 @@ public class CitasController : Controller
 
         var token = SessionHelper.GetToken(HttpContext.Session)!;
         var citaExistente = (await _citaService.GetByIdAsync(id, token)).Data;
+        if (citaExistente is null || !PuedeOperarCita(citaExistente, SessionHelper.GetRol(HttpContext.Session), SessionHelper.GetIdUsuario(HttpContext.Session)))
+        {
+            TempData["Error"] = "No tiene permisos para reagendar esta cita.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
         int.TryParse(citaExistente?.IdPsicologoStr, out var idPsicologo);
+        var config = _localData.GetConfiguracion();
 
         var dto = new ReagendarCitaDto
         {
@@ -577,12 +619,205 @@ public class CitasController : Controller
             FechaCita = model.NuevaFecha.Value.ToString("yyyy-MM-dd"),
             HoraInicio = FormatearHora(model.NuevaHoraInicio!),
             HoraFin = FormatearHora(model.NuevaHoraFin!),
-            MinutosTolerancia = 15
+            MinutosTolerancia = config.MinutosTolerancia,
+            MotivoReagenda = model.MotivoReagenda
         };
 
         var result = await _citaService.ReagendarAsync(id, dto, token);
         TempData[result.Success ? "Success" : "Error"] =
             result.Success ? "Cita reagendada exitosamente." : (result.Message ?? "No se pudo reagendar la cita.");
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    // POST: /Citas/GuardarSeguimiento/{id}  (notas de la sesión + si requiere próxima cita)
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [AuthorizeRole(Roles.Administrador, Roles.Psicologo)]
+    public async Task<IActionResult> GuardarSeguimiento(string id, CitaDetalleViewModel model)
+    {
+        var token = SessionHelper.GetToken(HttpContext.Session)!;
+        var citaResult = await _citaService.GetByIdAsync(id, token);
+        if (!citaResult.Success || citaResult.Data is null)
+        {
+            TempData["Error"] = "Cita no encontrada.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var cita = citaResult.Data;
+        var psicologoId = SessionHelper.GetIdUsuario(HttpContext.Session) ?? string.Empty;
+        var psicologoNombre = SessionHelper.GetNombreCompleto(HttpContext.Session) ?? "Psicóloga";
+
+        if (!PuedeOperarCita(cita, SessionHelper.GetRol(HttpContext.Session), SessionHelper.GetIdUsuario(HttpContext.Session)))
+        {
+            TempData["Error"] = "No tiene permisos para guardar el seguimiento de esta cita.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        var existente = _localData.GetSeguimientos()
+            .FirstOrDefault(s => string.Equals(s.IdCita, cita.Id, StringComparison.OrdinalIgnoreCase));
+
+        var seguimiento = existente ?? new SeguimientoRegistro
+        {
+            IdCita = cita.Id,
+            IdSolicitud = cita.IdSolicitud?.ToString() ?? string.Empty,
+            IdEstudiante = cita.IdEstudianteStr,
+            NombreEstudiante = cita.NombreEstudiante ?? string.Empty,
+            FechaRegistro = DateTime.Now
+        };
+
+        seguimiento.IdPsicologo = string.IsNullOrEmpty(seguimiento.IdPsicologo) ? psicologoId : seguimiento.IdPsicologo;
+        seguimiento.NombrePsicologo = string.IsNullOrEmpty(seguimiento.NombrePsicologo) ? psicologoNombre : seguimiento.NombrePsicologo;
+        seguimiento.Notas = model.NotasSesion;
+        seguimiento.Programado = model.RequiereProximaCita && model.FechaProximaCita.HasValue;
+        seguimiento.FechaProgramada = model.RequiereProximaCita ? model.FechaProximaCita : null;
+
+        if (existente is not null)
+            _localData.UpdateSeguimiento(seguimiento);
+        else
+            _localData.AddSeguimiento(seguimiento);
+
+        TempData["Success"] = "Seguimiento de la sesión guardado correctamente.";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    // POST: /Citas/AgendarProximaCita/{id}  (genera solicitud presencial para la próxima cita)
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [AuthorizeRole(Roles.Administrador, Roles.Psicologo)]
+    public async Task<IActionResult> AgendarProximaCita(string id)
+    {
+        var token = SessionHelper.GetToken(HttpContext.Session)!;
+        var citaResult = await _citaService.GetByIdAsync(id, token);
+        if (!citaResult.Success || citaResult.Data is null)
+        {
+            TempData["Error"] = "Cita no encontrada.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var cita = citaResult.Data;
+        if (!PuedeOperarCita(cita, SessionHelper.GetRol(HttpContext.Session), SessionHelper.GetIdUsuario(HttpContext.Session)))
+        {
+            TempData["Error"] = "No tiene permisos para agendar la próxima cita de esta cita.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        var idEstudiante = int.TryParse(cita.IdEstudianteStr, out var idEst) ? idEst : 0;
+        if (idEstudiante <= 0)
+        {
+            TempData["Error"] = "No se pudo identificar al estudiante para la próxima cita.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        // Crea una solicitud presencial para el estudiante en la bandeja, para agendarla por el flujo normal.
+        var result = await _solicitudService.CreateAsync(new CreateSolicitudDto
+        {
+            IdEstudiante = idEstudiante,
+            Origen = OrigenSolicitud.Presencial,
+            MotivoConsulta = "Cita de seguimiento"
+        }, token);
+
+        if (!result.Success || string.IsNullOrEmpty(result.Data?.Id))
+        {
+            TempData["Error"] = result.Message ?? "No se pudo generar la solicitud de la próxima cita.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        TempData["Success"] = "Solicitud de próxima cita generada. Complete el agendado desde la bandeja.";
+
+        // Si quien la genera es una psicóloga, la solicitud queda dirigida a ella (como en el
+        // calendario de disponibilidad), para que PuedeAsignarSolicitud la deje agendar.
+        if (SessionHelper.GetRol(HttpContext.Session) == Roles.Psicologo)
+        {
+            _localData.AddSolicitudCalendario(new SolicitudCalendario
+            {
+                IdSolicitud = result.Data.Id,
+                IdEstudiante = cita.IdEstudianteStr,
+                NombreEstudiante = cita.NombreEstudiante ?? string.Empty,
+                IdPsicologo = SessionHelper.GetIdUsuario(HttpContext.Session) ?? string.Empty,
+                NombrePsicologo = SessionHelper.GetNombreCompleto(HttpContext.Session) ?? "Psicóloga",
+                FechaCita = cita.Fecha > DateTime.Today ? cita.Fecha : DateTime.Today,
+                Atendida = false
+            });
+        }
+
+        return RedirectToAction("Create", "Citas", new { idSolicitud = result.Data.Id });
+    }
+
+    // POST: /Citas/ConfirmarBitacora/{id}  (el estudiante confirma la bitácora y se registra en la API)
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [AuthorizeRole(Roles.Estudiante)]
+    public async Task<IActionResult> ConfirmarBitacora(string id)
+    {
+        var token = SessionHelper.GetToken(HttpContext.Session)!;
+        var idEstudiante = SessionHelper.GetIdUsuario(HttpContext.Session);
+
+        var citaResult = await _citaService.GetByIdAsync(id, token);
+        if (!citaResult.Success || citaResult.Data is null)
+        {
+            TempData["Error"] = "Cita no encontrada.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var cita = citaResult.Data;
+        if (!string.Equals(cita.IdEstudianteStr, idEstudiante, StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["Error"] = "No puede confirmar la bitácora de una cita que no le pertenece.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        var pendiente = _localData.GetBitacoraPendiente(cita.Id);
+        if (pendiente is null || pendiente.Confirmada)
+        {
+            TempData["Error"] = "No hay una bitácora pendiente de confirmación para esta cita.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        var dto = new CreateBitacoraDto
+        {
+            IdCita = pendiente.IdCita,
+            Asistencia = pendiente.Asistencia,
+            Observaciones = pendiente.Observaciones,
+            AcuerdoSeguimiento = pendiente.AcuerdoSeguimiento
+        };
+
+        var result = await _bitacoraService.CreateAsync(dto, token);
+        if (!result.Success)
+        {
+            TempData["Error"] = result.Message ?? "No se pudo registrar la asistencia en la bitácora.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        // Marca la pendiente como confirmada.
+        pendiente.Confirmada = true;
+        pendiente.FechaConfirmacion = DateTime.Now;
+        _localData.UpdateBitacoraPendiente(pendiente);
+
+        // Si la bitácora acordó seguimiento, se registra automáticamente en el módulo de Seguimientos.
+        if (pendiente.AcuerdoSeguimiento)
+        {
+            var seguimiento = _localData.GetSeguimientos()
+                .FirstOrDefault(s => string.Equals(s.IdCita, cita.Id, StringComparison.OrdinalIgnoreCase));
+            if (seguimiento is null)
+            {
+                _localData.AddSeguimiento(new SeguimientoRegistro
+                {
+                    IdCita = cita.Id,
+                    IdSolicitud = cita.IdSolicitud?.ToString() ?? string.Empty,
+                    IdEstudiante = cita.IdEstudianteStr,
+                    NombreEstudiante = cita.NombreEstudiante ?? string.Empty,
+                    IdPsicologo = cita.IdPsicologoStr,
+                    NombrePsicologo = cita.NombrePsicologo ?? string.Empty,
+                    Motivo = "Acuerdo de seguimiento registrado en bitácora",
+                    Programado = false
+                });
+            }
+        }
+
+        _logger.LogInformation("Estudiante {Id} confirmó la bitácora de la cita {Cita}", idEstudiante, id);
+        TempData["Success"] = "Bitácora confirmada y registrada correctamente." + (pendiente.AcuerdoSeguimiento
+            ? " Se registró el acuerdo de seguimiento."
+            : "");
         return RedirectToAction(nameof(Details), new { id });
     }
 
@@ -671,6 +906,19 @@ public class CitasController : Controller
 
         return !string.IsNullOrEmpty(idDirigida) &&
                string.Equals(idDirigida, idUsuario, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Regla de acceso de las acciones de confirmación/cancelación/reagenda/seguimiento:
+    /// la psicóloga (rol no administrador) solo puede operar las citas asignadas a ella
+    /// (misma regla que el GET Details). El Administrador puede operar cualquier cita.
+    /// </summary>
+    private bool PuedeOperarCita(CitaDto? cita, string? rol, string? idUsuario)
+    {
+        if (!string.Equals(rol, Roles.Psicologo, StringComparison.OrdinalIgnoreCase) || cita is null)
+            return true;
+        return !string.IsNullOrEmpty(idUsuario) &&
+               string.Equals(cita.IdPsicologoStr, idUsuario, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>Calcula la disponibilidad (horarios libres por psicóloga) y horarios de la fecha seleccionada</summary>

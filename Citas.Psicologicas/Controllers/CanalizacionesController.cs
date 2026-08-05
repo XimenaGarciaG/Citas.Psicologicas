@@ -1,8 +1,10 @@
 using Citas.Psicologicas.Constants;
 using Citas.Psicologicas.DTOs.Canalizaciones;
+using Citas.Psicologicas.DTOs.Solicitudes;
 using Citas.Psicologicas.Filters;
 using Citas.Psicologicas.Helpers;
 using Citas.Psicologicas.Interfaces;
+using Citas.Psicologicas.Models;
 using Citas.Psicologicas.ViewModels.Canalizaciones;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,16 +15,22 @@ namespace Citas.Psicologicas.Controllers;
 public class CanalizacionesController : Controller
 {
     private readonly ICanalizacionService _canalizacionService;
+    private readonly ISolicitudService _solicitudService;
     private readonly IUsuarioService _usuarioService;
+    private readonly ILocalDataService _localData;
     private readonly ILogger<CanalizacionesController> _logger;
 
     public CanalizacionesController(
         ICanalizacionService canalizacionService,
+        ISolicitudService solicitudService,
         IUsuarioService usuarioService,
+        ILocalDataService localData,
         ILogger<CanalizacionesController> logger)
     {
         _canalizacionService = canalizacionService;
+        _solicitudService = solicitudService;
         _usuarioService = usuarioService;
+        _localData = localData;
         _logger = logger;
     }
 
@@ -52,6 +60,7 @@ public class CanalizacionesController : Controller
         var vm = new CanalizacionIndexViewModel
         {
             Canalizaciones = canalizaciones,
+            Vinculos = _localData.GetCanalizacionesSolicitudes(),
             FiltroBusqueda = busqueda,
             FiltroEstado = estado
         };
@@ -60,7 +69,7 @@ public class CanalizacionesController : Controller
         return View(vm);
     }
 
-    [AuthorizeRole(Roles.Tutor, Roles.Administrador)]
+    [AuthorizeRole(Roles.Tutor)]
     public async Task<IActionResult> Create()
     {
         var token = SessionHelper.GetToken(HttpContext.Session)!;
@@ -79,7 +88,7 @@ public class CanalizacionesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [AuthorizeRole(Roles.Tutor, Roles.Administrador)]
+    [AuthorizeRole(Roles.Tutor)]
     public async Task<IActionResult> Create(CanalizacionCreateViewModel model)
     {
         var token = SessionHelper.GetToken(HttpContext.Session)!;
@@ -100,13 +109,46 @@ public class CanalizacionesController : Controller
         };
 
         var result = await _canalizacionService.CreateAsync(dto, token);
-        if (result.Success)
+        if (!result.Success)
         {
-            TempData["Success"] = "Canalización registrada exitosamente.";
-            return RedirectToAction(nameof(Index));
+            TempData["Error"] = result.Message ?? "No se pudo registrar la canalización.";
+            return View(model);
         }
 
-        TempData["Error"] = result.Message ?? "No se pudo registrar la canalización.";
-        return View(model);
+        var idCanalizacion = result.Data?.Id ?? string.Empty;
+
+        // La canalización del tutor genera automáticamente una solicitud de atención (origen TITULAR)
+        // para el estudiante; así puede ser agendada desde la bandeja de solicitudes.
+        var solicitud = await _solicitudService.CreateAsync(new CreateSolicitudDto
+        {
+            IdEstudiante = int.TryParse(model.IdEstudiante, out var idEst2) ? idEst2 : 0,
+            Origen = OrigenSolicitud.Tutoria,
+            MotivoConsulta = model.Motivo,
+            Prioridad = Prioridades.Media,
+            PuntuacionTriage = 0
+        }, token);
+
+        if (solicitud.Success && !string.IsNullOrEmpty(solicitud.Data?.Id))
+        {
+            _localData.AddCanalizacionSolicitud(new CanalizacionSolicitud
+            {
+                IdCanalizacion = idCanalizacion,
+                IdSolicitud = solicitud.Data.Id,
+                IdEstudiante = solicitud.Data.IdEstudianteStr,
+                NombreEstudiante = solicitud.Data.NombreEstudiante ?? string.Empty,
+                IdTutor = SessionHelper.GetIdUsuario(HttpContext.Session) ?? string.Empty,
+                NombreTutor = SessionHelper.GetNombreCompleto(HttpContext.Session) ?? string.Empty,
+                Motivo = model.Motivo,
+                FechaRegistro = DateTime.Now
+            });
+
+            TempData["Success"] = "Canalización registrada. Se generó la solicitud de atención para el estudiante.";
+        }
+        else
+        {
+            TempData["Warning"] = "Canalización registrada, pero no se pudo generar la solicitud de atención.";
+        }
+
+        return RedirectToAction(nameof(Index));
     }
 }

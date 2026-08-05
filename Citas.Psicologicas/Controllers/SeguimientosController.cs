@@ -66,6 +66,11 @@ public class SeguimientosController : Controller
         model.Programado = model.FechaProgramada is not null && model.FechaProgramada > DateTime.Now;
         model.FechaRegistro = DateTime.Now;
 
+        if (string.IsNullOrEmpty(model.IdPsicologo))
+            model.IdPsicologo = Citas.Psicologicas.Helpers.SessionHelper.GetIdUsuario(HttpContext.Session) ?? string.Empty;
+        if (string.IsNullOrEmpty(model.NombrePsicologo))
+            model.NombrePsicologo = Citas.Psicologicas.Helpers.SessionHelper.GetNombreCompleto(HttpContext.Session) ?? "Psicóloga";
+
         _localData.AddSeguimiento(model);
         TempData["Success"] = "Seguimiento registrado correctamente.";
         return RedirectToAction(nameof(Index));

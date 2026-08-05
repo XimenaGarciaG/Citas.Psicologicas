@@ -21,10 +21,16 @@ public interface ILocalDataService
 
     List<NotificacionRegistro> GetNotificaciones();
     void AddNotificacion(NotificacionRegistro notificacion);
+    void MarcarNotificacionEnviada(int id);
 
     List<SeguimientoRegistro> GetSeguimientos();
     void AddSeguimiento(SeguimientoRegistro seguimiento);
     void UpdateSeguimiento(SeguimientoRegistro seguimiento);
+
+    List<BitacoraPendiente> GetBitacorasPendientes();
+    BitacoraPendiente? GetBitacoraPendiente(string idCita);
+    void AddBitacoraPendiente(BitacoraPendiente bitacora);
+    void UpdateBitacoraPendiente(BitacoraPendiente bitacora);
 
     List<ConfirmacionAsistencia> GetConfirmaciones();
     void SetConfirmacion(ConfirmacionAsistencia confirmacion);
@@ -40,6 +46,9 @@ public interface ILocalDataService
     List<SolicitudCalendario> GetSolicitudesCalendarioPendientes();
     void AddSolicitudCalendario(SolicitudCalendario solicitud);
     void MarcarSolicitudCalendarioAtendida(int id);
+
+    List<CanalizacionSolicitud> GetCanalizacionesSolicitudes();
+    void AddCanalizacionSolicitud(CanalizacionSolicitud vinculo);
 
     void SetContrasenaLocal(string userId, string password);
     string? GetContrasenaLocal(string userId);

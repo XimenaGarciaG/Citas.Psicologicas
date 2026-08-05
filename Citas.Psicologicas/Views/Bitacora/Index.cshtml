@@ -36,6 +36,51 @@
         </div>
     </div>
 
+    @if (Model.TotalPendientes > 0)
+    {
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fa fa-clock me-1"></i>Pendientes de confirmación del estudiante
+                    <span class="badge bg-warning text-dark ms-2">@Model.TotalPendientes</span>
+                </h2>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Estudiante</th>
+                            <th>Psicólogo/a</th>
+                            <th>Asistencia</th>
+                            <th>Enviada</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in Model.Pendientes)
+                        {
+                            <tr>
+                                <td class="fw-600">@p.NombreEstudiante</td>
+                                <td class="text-muted">@p.NombrePsicologo</td>
+                                <td>
+                                    <span class="badge-pill badge-@(p.Asistencia ? "confirmada" : "cancelada")">
+                                        @(p.Asistencia ? "Asistió" : "No asistió")
+                                    </span>
+                                </td>
+                                <td class="text-muted small">@p.FechaEnvio.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td class="text-end">
+                                    <a href="/Citas/Details/@p.IdCita" class="btn btn-sm btn-outline-primary">
+                                        <i class="fa fa-eye me-1"></i> Ver cita
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
     <div class="card">
         <div class="card-body p-0">
             @if (!Model.Registros.Any())

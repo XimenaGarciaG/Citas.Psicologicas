@@ -236,6 +236,88 @@ public class CitasController : Controller
         return View(model);
     }
 
+    // POST: /Citas/AsignarDirecta/{idSolicitud}  (agenda directo la cita preseleccionada desde la bandeja)
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [AuthorizeRole(Roles.Administrador, Roles.Psicologo)]
+    public async Task<IActionResult> AsignarDirecta(string idSolicitud)
+    {
+        var token = SessionHelper.GetToken(HttpContext.Session)!;
+
+        var sc = _localData.GetSolicitudesCalendario()
+            .FirstOrDefault(s => string.Equals(s.IdSolicitud, idSolicitud, StringComparison.OrdinalIgnoreCase) && !s.Atendida);
+
+        if (sc is null)
+        {
+            TempData["Error"] = "La solicitud directa no fue encontrada o ya fue atendida.";
+            return RedirectToAction("Bandeja", "Solicitudes");
+        }
+
+        var solicitud = (await _solicitudService.GetByIdAsync(idSolicitud, token)).Data;
+        if (solicitud is null || !PuedeAsignarSolicitud(solicitud))
+        {
+            TempData["Error"] = "No tiene permisos para agendar esta solicitud.";
+            return RedirectToAction("Bandeja", "Solicitudes");
+        }
+
+        if (string.IsNullOrEmpty(sc.IdPsicologo))
+        {
+            TempData["Error"] = "La solicitud no tiene una psicóloga preseleccionada.";
+            return RedirectToAction("Bandeja", "Solicitudes");
+        }
+
+        var config = _localData.GetConfiguracion();
+        var citas = (await _citaService.GetAllAsync(token)).Data ?? [];
+        var psicologos = (await _usuarioService.GetAllAsync(token)).Data
+            ?.Where(u => u.Rol == Roles.Psicologo)
+            .ToList() ?? [];
+        var bloqueos = _localData.GetBloqueos(sc.FechaCita);
+
+        // Se agenda SOLO con la psicóloga preseleccionada (la que el estudiante eligió).
+        var (idPsicologoAsignada, hIni, hFin, nota) = ResolverAsignacion(
+            new CitaCreateViewModel
+            {
+                FechaCita = sc.FechaCita,
+                HoraInicio = NormalizarHora(sc.HoraInicio),
+                HoraFin = NormalizarHora(sc.HoraFin)
+            },
+            citas, psicologos, bloqueos, config, sc.IdPsicologo, soloASiMisma: true);
+
+        if (string.IsNullOrEmpty(idPsicologoAsignada))
+        {
+            TempData["Error"] = "La psicóloga preseleccionada no tiene disponibilidad en la fecha/horario solicitado.";
+            return RedirectToAction("Bandeja", "Solicitudes");
+        }
+
+        var dto = new CreateCitaDto
+        {
+            IdSolicitud = int.TryParse(sc.IdSolicitud, out var idSol) ? idSol : 0,
+            IdPsicologo = int.TryParse(idPsicologoAsignada, out var idPsi) ? idPsi : 0,
+            FechaCita = sc.FechaCita.ToString("yyyy-MM-dd"),
+            HoraInicio = FormatearHora(hIni),
+            HoraFin = FormatearHora(hFin),
+            MinutosTolerancia = config.MinutosTolerancia
+        };
+
+        var result = await _citaService.CreateAsync(dto, token);
+        if (!result.Success)
+        {
+            TempData["Error"] = result.Message ?? "No se pudo agendar la cita.";
+            return RedirectToAction("Bandeja", "Solicitudes");
+        }
+
+        _localData.MarcarSolicitudCalendarioAtendida(sc.Id);
+
+        var psicologo = psicologos.FirstOrDefault(p => p.Id == idPsicologoAsignada);
+        await NotificarCitaAgendadaAsync(solicitud, psicologo, sc.FechaCita, hIni, nota, token);
+
+        TempData["Success"] = string.IsNullOrEmpty(nota)
+            ? $"Cita agendada con {psicologo?.NombreCompleto ?? "la psicóloga seleccionada"} el {sc.FechaCita:dd/MM/yyyy} a las {hIni}."
+            : $"Cita agendada. {nota}";
+
+        return RedirectToAction("Index", "Citas");
+    }
+
     // GET: /Citas/Details/{id}
     public async Task<IActionResult> Details(string id)
     {

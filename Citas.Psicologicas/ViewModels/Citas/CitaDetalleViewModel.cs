@@ -25,7 +25,8 @@ public class CitaDetalleViewModel
 
     public bool PuedeConfirmar => Cita.Estado == EstadosCita.Reservada;
     public bool PuedeCancelar => Cita.Estado is EstadosCita.Reservada or EstadosCita.Confirmada;
-    public bool PuedeReagendar => Cita.Estado is EstadosCita.Reservada or EstadosCita.Confirmada;
+    public bool PuedeReagendar =>
+        Cita.Estado is EstadosCita.Reservada or EstadosCita.Confirmada or EstadosCita.Cancelada;
 
     /// <summary>Indica si el estudiante puede cancelar su cita según las reglas del negocio</summary>
     public bool PuedeCancelarEstudiante { get; set; }

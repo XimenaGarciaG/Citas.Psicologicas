@@ -105,7 +105,7 @@ public class BitacoraController : Controller
                     _localData.AddSeguimiento(new SeguimientoRegistro
                     {
                         IdCita = cita.Data.Id,
-                        IdSolicitud = cita.Data.IdSolicitud?.ToString() ?? string.Empty,
+                        IdSolicitud = cita.Data.IdSolicitudElement?.ToString() ?? string.Empty,
                         IdEstudiante = cita.Data.IdEstudianteStr,
                         NombreEstudiante = cita.Data.NombreEstudiante ?? string.Empty,
                         Motivo = "Acuerdo de seguimiento registrado en bitácora",

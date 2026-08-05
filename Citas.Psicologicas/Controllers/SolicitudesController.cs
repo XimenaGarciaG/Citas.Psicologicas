@@ -132,40 +132,40 @@ public class SolicitudesController : Controller
     [AuthorizeRole(Roles.Estudiante)]
     public async Task<IActionResult> Create(SolicitudCreateViewModel model)
     {
+        // Remover validaciones innecesarias del modelo para que no bloqueen
+        ModelState.Remove(nameof(model.Comentario));
+
         if (!ModelState.IsValid)
             return View(model);
 
         var token = SessionHelper.GetToken(HttpContext.Session)!;
+
+        // Asegurar un ID válido desde la sesión
+        var idUsuarioStr = SessionHelper.GetIdUsuario(HttpContext.Session);
+
+        // NUEVO: Validar que el ID sea un número válido mayor a 0
+        if (!int.TryParse(idUsuarioStr, out var idEstudiante) || idEstudiante <= 0)
+        {
+            TempData["Error"] = "Error de sesión: Tu cuenta no tiene un ID de estudiante válido asociado.";
+            return View(model);
+        }
+
         var dto = new CreateSolicitudDto
         {
-            IdEstudiante = int.TryParse(SessionHelper.GetIdUsuario(HttpContext.Session), out var idEst) ? idEst : 0,
-            Origen = OrigenSolicitud.Autonomo,
-            MotivoConsulta = model.Comentario ?? string.Empty
+            IdEstudiante = idEstudiante,
+            Origen = OrigenSolicitud.Autonoma,
+            MotivoConsulta = string.IsNullOrWhiteSpace(model.Comentario) ? "Sin comentario" : model.Comentario
         };
 
         var result = await _solicitudService.CreateAsync(dto, token);
+
         if (result.Success)
         {
-            // Solicitud directa del calendario: se dirige a la psicóloga del horario elegido.
-            if (model.DesdeCalendario && model.FechaCita.HasValue)
-            {
-                _localData.AddSolicitudCalendario(new SolicitudCalendario
-                {
-                    IdSolicitud = result.Data?.Id ?? string.Empty,
-                    IdEstudiante = SessionHelper.GetIdUsuario(HttpContext.Session) ?? string.Empty,
-                    NombreEstudiante = SessionHelper.GetNombreCompleto(HttpContext.Session) ?? string.Empty,
-                    IdPsicologo = model.IdPsicologo,
-                    NombrePsicologo = model.NombrePsicologo,
-                    FechaCita = model.FechaCita.Value,
-                    HoraInicio = model.HoraInicio,
-                    HoraFin = model.HoraFin
-                });
-            }
-
-            TempData["Success"] = "Solicitud enviada exitosamente. Se le notificará cuando sea atendida.";
+            TempData["Success"] = "Solicitud enviada exitosamente.";
             return RedirectToAction(nameof(Index));
         }
 
+        // Ahora sí mostrará el mensaje real: "El estudiante especificado no existe."
         TempData["Error"] = result.Message ?? "No se pudo enviar la solicitud.";
         return View(model);
     }

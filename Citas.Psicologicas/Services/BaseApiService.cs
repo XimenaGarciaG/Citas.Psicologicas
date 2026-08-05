@@ -62,6 +62,7 @@ public abstract class BaseApiService
     }
 
     /// <summary>Realiza una solicitud POST y deserializa la respuesta</summary>
+    /// <summary>Realiza una solicitud POST y deserializa la respuesta</summary>
     protected async Task<ApiResponse<T>> PostAsync<T>(string url, object body, string? token = null)
     {
         try
@@ -77,9 +78,23 @@ public abstract class BaseApiService
                 var data = JsonSerializer.Deserialize<T>(responseContent, JsonOptions);
                 return ApiResponseHelper.Ok(data!);
             }
+
+            // --- NUEVO: Extraer el mensaje de error real enviado por el BackEnd ---
+            try
+            {
+                var errorData = JsonSerializer.Deserialize<JsonElement>(responseContent);
+                if (errorData.TryGetProperty("mensaje", out var msgElement))
+                {
+                    return ApiResponseHelper.Fail<T>(msgElement.GetString() ?? "Error del servidor", response.StatusCode);
+                }
+            }
+            catch { /* Ignorar si no se puede parsear */ }
+            // ----------------------------------------------------------------------
+
             Logger.LogWarning("POST {Url} -> {Status}: {Body}", url, response.StatusCode, responseContent);
             return ApiResponseHelper.Fail<T>($"Error del servidor: {response.StatusCode}", response.StatusCode);
         }
+        // ... (catch exceptions se quedan igual)
         catch (HttpRequestException ex)
         {
             Logger.LogError(ex, "Error de red en POST {Url}", url);

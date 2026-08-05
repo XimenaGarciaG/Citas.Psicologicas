@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Citas.Psicologicas.DTOs.Citas;
@@ -6,33 +7,36 @@ namespace Citas.Psicologicas.DTOs.Citas;
 public class CitaDto
 {
     [JsonPropertyName("idCita")]
-    public object? IdCita { get; set; }
+    public JsonElement? IdCitaElement { get; set; }
 
     [JsonPropertyName("idSolicitud")]
-    public object? IdSolicitud { get; set; }
+    public JsonElement? IdSolicitudElement { get; set; }
 
     [JsonPropertyName("idEstudiante")]
-    public object? IdEstudiante { get; set; }
-
-    public string? NombreEstudiante { get; set; }
+    public JsonElement? IdEstudianteElement { get; set; }
 
     [JsonPropertyName("idPsicologo")]
-    public object? IdPsicologo { get; set; }
+    public JsonElement? IdPsicologoElement { get; set; }
 
+    public string? NombreEstudiante { get; set; }
     public string? NombrePsicologo { get; set; }
     public DateTime? FechaCita { get; set; }
     public string HoraInicio { get; set; } = string.Empty;
     public string HoraFin { get; set; } = string.Empty;
     public int MinutosTolerancia { get; set; } = 15;
+
+    // FIX: Mapear explícitamente la propiedad que viene de la API REST ("estadoCita")
+    [JsonPropertyName("estadoCita")]
     public string Estado { get; set; } = "RESERVADA";
+
     public string? Prioridad { get; set; }
     public string? Motivo { get; set; }
     public bool EsSeguimiento { get; set; }
     public DateTime? FechaCreacion { get; set; }
 
-    public string Id => IdCita?.ToString() ?? "";
-    public string IdEstudianteStr => IdEstudiante?.ToString() ?? "";
-    public string IdPsicologoStr => IdPsicologo?.ToString() ?? "";
+    public string Id => IdCitaElement.HasValue ? IdCitaElement.Value.ToString() : "";
+    public string IdEstudianteStr => IdEstudianteElement.HasValue ? IdEstudianteElement.Value.ToString() : "";
+    public string IdPsicologoStr => IdPsicologoElement.HasValue ? IdPsicologoElement.Value.ToString() : "";
     public DateTime Fecha => FechaCita ?? DateTime.Today;
 
     public string BadgeEstado => Estado?.ToUpper() switch

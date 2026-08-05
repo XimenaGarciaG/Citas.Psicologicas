@@ -14,7 +14,7 @@ public class SolicitudDto
 
     public string? NombreEstudiante { get; set; }
     public string? MatriculaEstudiante { get; set; }
-    public string Origen { get; set; } = OrigenSolicitud.Autonomo;
+    public string Origen { get; set; } = OrigenSolicitud.Autonoma;
     public string MotivoConsulta { get; set; } = string.Empty;
     public string Prioridad { get; set; } = "BAJA";
     public int PuntuacionTriage { get; set; }

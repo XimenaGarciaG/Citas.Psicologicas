@@ -46,9 +46,9 @@ public class CitasController : Controller
 
         // Filtrar según rol
         if (rol == Roles.Estudiante)
-            citas = citas.Where(c => string.Equals(c.IdEstudiante?.ToString(), idUsuario, StringComparison.OrdinalIgnoreCase)).ToList();
+            citas = citas.Where(c => string.Equals(c.IdEstudianteElement?.ToString(), idUsuario, StringComparison.OrdinalIgnoreCase)).ToList();
         else if (rol == Roles.Psicologo)
-            citas = citas.Where(c => string.Equals(c.IdPsicologo?.ToString(), idUsuario, StringComparison.OrdinalIgnoreCase)).ToList();
+            citas = citas.Where(c => string.Equals(c.IdPsicologoElement?.ToString(), idUsuario, StringComparison.OrdinalIgnoreCase)).ToList();
 
         if (!string.IsNullOrEmpty(estado))
             citas = citas.Where(c => string.Equals(c.Estado, estado, StringComparison.OrdinalIgnoreCase)).ToList();
@@ -482,7 +482,7 @@ public class CitasController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    // POST: /Citas/Reagendar/{id}
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Reagendar(string id, CitaDetalleViewModel model)
@@ -496,20 +496,35 @@ public class CitasController : Controller
         }
 
         var token = SessionHelper.GetToken(HttpContext.Session)!;
+
+        // 1. Obtener los datos actuales de la cita para conservar el IdPsicologo
+        var citaActualResult = await _citaService.GetByIdAsync(id, token);
+        if (!citaActualResult.Success || citaActualResult.Data is null)
+        {
+            TempData["Error"] = "Cita no encontrada.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        int.TryParse(citaActualResult.Data.IdPsicologoStr, out var idPsicologo);
+
+        // 2. Instanciar ReagendarCitaDto con formato YYYY-MM-DD para DateOnly
         var dto = new ReagendarCitaDto
         {
-            NuevaFecha = model.NuevaFecha.Value,
-            NuevaHoraInicio = model.NuevaHoraInicio!,
-            NuevaHoraFin = model.NuevaHoraFin!,
+            IdPsicologo = idPsicologo,
+            FechaCita = model.NuevaFecha.Value.ToString("yyyy-MM-dd"), // <-- Formato correcto
+            HoraInicio = FormatearHora(model.NuevaHoraInicio!),
+            HoraFin = FormatearHora(model.NuevaHoraFin!),
+            MinutosTolerancia = 15,
             MotivoReagenda = model.MotivoReagenda
         };
 
+        // 3. Ejecutar llamada al servicio
         var result = await _citaService.ReagendarAsync(id, dto, token);
         TempData[result.Success ? "Success" : "Error"] =
             result.Success ? "Cita reagendada exitosamente." : (result.Message ?? "No se pudo reagendar la cita.");
+
         return RedirectToAction(nameof(Details), new { id });
     }
-
     /// <summary>Carga el ViewModel de creación de cita con solicitudes pendientes y psicólogos</summary>
     private async Task<CitaCreateViewModel> CargarDatosCitaAsync()
     {

@@ -36,8 +36,13 @@ public class CanalizacionesController : Controller
         var rol = SessionHelper.GetRol(HttpContext.Session);
         if (rol == Roles.Tutor)
         {
-            var idTutor = SessionHelper.GetIdUsuario(HttpContext.Session);
-            canalizaciones = canalizaciones.Where(c => string.Equals(c.IdTutor?.ToString(), idTutor, StringComparison.OrdinalIgnoreCase)).ToList();
+            var idUsuarioSession = SessionHelper.GetIdUsuario(HttpContext.Session);
+
+            // Comparar tanto contra IdTutor como contra IdUsuarioTutor
+            canalizaciones = canalizaciones.Where(c =>
+                string.Equals(c.IdTutor?.ToString(), idUsuarioSession, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(c.IdUsuarioTutor?.ToString(), idUsuarioSession, StringComparison.OrdinalIgnoreCase)
+            ).ToList();
         }
 
         if (!string.IsNullOrEmpty(busqueda))
@@ -105,6 +110,10 @@ public class CanalizacionesController : Controller
             TempData["Success"] = "Canalización registrada exitosamente.";
             return RedirectToAction(nameof(Index));
         }
+
+        // Si el BackEnd retorna un error, re-recargamos los estudiantes antes de regresar la vista
+        var usuariosConsulta = await _usuarioService.GetAllAsync(token);
+        model.Estudiantes = usuariosConsulta.Data?.Where(u => u.Rol == Roles.Estudiante).ToList() ?? [];
 
         TempData["Error"] = result.Message ?? "No se pudo registrar la canalización.";
         return View(model);

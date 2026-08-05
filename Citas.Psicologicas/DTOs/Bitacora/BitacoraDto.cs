@@ -11,12 +11,25 @@ public class BitacoraDto
     [JsonPropertyName("idCita")]
     public object? IdCita { get; set; }
 
+    [JsonPropertyName("nombreEstudiante")]
     public string? NombreEstudiante { get; set; }
+
+    [JsonPropertyName("nombrePsicologo")]
     public string? NombrePsicologo { get; set; }
+
+    [JsonPropertyName("asistencia")]
     public bool Asistencia { get; set; }
+
+    [JsonPropertyName("observaciones")]
     public string? Observaciones { get; set; }
+
+    [JsonPropertyName("acuerdoSeguimiento")]
     public bool AcuerdoSeguimiento { get; set; }
+
+    [JsonPropertyName("fechaCierre")]
     public DateTime? Fecha { get; set; }
+
+    [JsonPropertyName("fechaCita")]
     public DateTime? FechaCita { get; set; }
 
     public string Id => IdBitacora?.ToString() ?? "";

@@ -167,8 +167,9 @@
             <div class="sidebar-user">
                 <div class="sidebar-avatar">
                     @{
-                        var nombre = Context.Session.GetString("NombreCompleto") ?? "US";
-                        var iniciales = nombre.Length >= 2 ? $"{nombre[0]}{nombre.Split(' ').LastOrDefault()?[0]}" : nombre[..1];
+                        var nombre = (Context.Session.GetString("NombreCompleto") ?? string.Empty).Trim();
+                        var partes = nombre.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                        var iniciales = partes.Length >= 2 ? $"{partes[0][0]}{partes[1][0]}" : (partes.Length == 1 ? partes[0][..1] : "US");
                     }
                     @iniciales.ToUpper()
                 </div>
@@ -214,7 +215,7 @@
                     <button class="btn btn-light btn-sm d-flex align-items-center gap-2 border"
                             type="button" data-bs-toggle="dropdown">
                         <div class="avatar avatar-sm">@iniciales.ToUpper()</div>
-                        <span class="d-none d-sm-block fw-600">@nombre.Split(' ')[0]</span>
+                        <span class="d-none d-sm-block fw-600">@(partes.Length > 0 ? partes[0] : "Usuario")</span>
                         <i class="fa fa-chevron-down fa-xs"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3">

@@ -1,3 +1,5 @@
+using System.Globalization;
+using Citas.Psicologicas.Constants;
 using Citas.Psicologicas.Helpers;
 
 namespace Citas.Psicologicas.Middleware;
@@ -47,6 +49,22 @@ public class SessionValidationMiddleware
         // Verificar autenticación
         if (!SessionHelper.IsAuthenticated(context.Session))
         {
+            var returnUrl = Uri.EscapeDataString(context.Request.Path + context.Request.QueryString);
+            context.Response.Redirect($"/Auth/Login?returnUrl={returnUrl}");
+            return;
+        }
+
+        // Expiración absoluta de la sesión
+        var expiraSesion = context.Session.GetString(SessionKeys.ExpiraSesion);
+        if (!string.IsNullOrEmpty(expiraSesion) &&
+            DateTime.TryParse(
+                expiraSesion,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.RoundtripKind,
+                out var limite) &&
+            limite <= DateTime.Now)
+        {
+            context.Session.Clear();
             var returnUrl = Uri.EscapeDataString(context.Request.Path + context.Request.QueryString);
             context.Response.Redirect($"/Auth/Login?returnUrl={returnUrl}");
             return;

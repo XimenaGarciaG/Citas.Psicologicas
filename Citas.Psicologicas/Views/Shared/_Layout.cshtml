@@ -286,6 +286,20 @@
 <script src="~/js/site.js" asp-append-version="true"></script>
 <script src="~/js/datatables-init.js" asp-append-version="true"></script>
 
+<script>
+    // Renueva la sesión cada 10 minutos mientras la pestaña esté visible,
+    // para que el timeout de inactividad (30 min) no bote al usuario por
+    // estar leyendo una página. No interrumpe el logout por inactividad real.
+    (function () {
+        setInterval(function () {
+            if (!document.hidden) {
+                fetch('/Home/KeepAlive', { method: 'GET', credentials: 'same-origin', cache: 'no-store' })
+                    .catch(function () { });
+            }
+        }, 10 * 60 * 1000);
+    })();
+</script>
+
 @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

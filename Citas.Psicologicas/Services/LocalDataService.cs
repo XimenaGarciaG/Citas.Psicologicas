@@ -341,6 +341,9 @@ public class LocalDataService : ILocalDataService
     public string? GetResetToken(string email)
         => GetResetTokens().FirstOrDefault(t => string.Equals(t.Email, email, StringComparison.OrdinalIgnoreCase))?.Token;
 
+    public string? GetEmailByResetToken(string token)
+        => GetResetTokens().FirstOrDefault(t => string.Equals(t.Token, token, StringComparison.Ordinal))?.Email;
+
     public void RemoveResetToken(string email)
     {
         var items = GetResetTokens();

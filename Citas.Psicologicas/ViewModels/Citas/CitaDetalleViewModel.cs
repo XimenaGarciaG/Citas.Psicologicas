@@ -30,6 +30,12 @@ public class CitaDetalleViewModel
         !Reagendada &&
         Cita.Estado is EstadosCita.Reservada or EstadosCita.Confirmada or EstadosCita.Cancelada;
 
+    /// <summary>La sesión está en curso ahora mismo (fecha = hoy, hora inicio ≤ ahora ≤ hora fin + tolerancia)</summary>
+    public bool EsSesionEnCurso { get; set; }
+
+    /// <summary>El alumno ya confirmó la bitácora de esta cita</summary>
+    public bool BitacoraConfirmada => BitacoraPendiente?.Confirmada == true;
+
     /// <summary>Indica si la cita ya fue reagendada (solo se permite una reagenda por cita)</summary>
     public bool Reagendada { get; set; }
 

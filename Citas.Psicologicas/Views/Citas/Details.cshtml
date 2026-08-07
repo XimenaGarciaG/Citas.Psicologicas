@@ -127,40 +127,9 @@
 
         <!-- Panel informativo -->
         <div class="col-lg-5">
-            <div class="card">
-                <div class="card-header">
-                    <h2 class="card-title">Información adicional</h2>
-                </div>
-                <div class="card-body">
-                    <div class="d-flex flex-column gap-3">
-                        <div class="d-flex align-items-center gap-3">
-                            <div class="avatar" style="background: linear-gradient(135deg, #2563EB, #7C3AED)">
-                                <i class="fa fa-user"></i>
-                            </div>
-                            <div>
-                                <div class="fw-600">@Model.Cita.NombreEstudiante</div>
-                                <div class="text-muted small">Estudiante</div>
-                            </div>
-                        </div>
-                        <div class="d-flex align-items-center gap-3">
-                            <div class="avatar" style="background: linear-gradient(135deg, #059669, #10B981)">
-                                <i class="fa fa-user-doctor"></i>
-                            </div>
-                            <div>
-                                <div class="fw-600">@Model.Cita.NombrePsicologo</div>
-                                <div class="text-muted small">Psicólogo/a</div>
-                            </div>
-                        </div>
-                        <hr>
-                        <div class="text-muted small">
-                            <i class="fa fa-clock me-1"></i> Creada el @(Model.Cita.FechaCreacion?.ToString("dd/MM/yyyy HH:mm") ?? "—")
-                        </div>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Seguimiento de la sesión (psicóloga / admin) -->
-            @if (rol == Roles.Administrador || rol == Roles.Psicologo)
+            <!-- Seguimiento de la sesión (psicóloga / admin) - Solo cuando el alumno confirme asistencia -->
+            @if ((rol == Roles.Administrador || rol == Roles.Psicologo) && Model.AsistenciaConfirmada)
             {
                 <div class="card mt-3">
                     <div class="card-header">
@@ -204,8 +173,11 @@
                         }
                     </div>
                 </div>
+            }
 
-                <!-- Registrar y Enviar Bitácora al Alumno (psicóloga / admin) -->
+            <!-- Registrar y Enviar Bitácora al Alumno (psicóloga / admin) - Solo durante la sesión en curso -->
+            @if ((rol == Roles.Administrador || rol == Roles.Psicologo) && Model.EsSesionEnCurso)
+            {
                 <div class="card mt-3">
                     <div class="card-header bg-light">
                         <h2 class="card-title h6 mb-0"><i class="fa fa-paper-plane me-1"></i>Enviar Bitácora al Alumno por Email</h2>
@@ -257,8 +229,8 @@
                 </div>
             }
 
-            <!-- Agendar Nueva Cita de Seguimiento (psicóloga / admin) -->
-            @if (rol == Roles.Administrador || rol == Roles.Psicologo)
+            <!-- Agendar Nueva Cita de Seguimiento (psicóloga / admin) - Solo durante la sesión en curso -->
+            @if ((rol == Roles.Administrador || rol == Roles.Psicologo) && Model.EsSesionEnCurso)
             {
                 <div class="card mt-3">
                     <div class="card-header bg-light">
@@ -412,7 +384,7 @@
             if (!inputFecha || !selectHora) return;
 
             // La psicóloga de la cita actual (necesaria para el endpoint)
-            var idPsicologo = '@Html.Raw(Model.Cita.IdPsicologoStr)';
+            var idPsicologo = @Json.Serialize(Model.Cita.IdPsicologoStr);
 
             inputFecha.addEventListener('change', function () {
                 var fecha = this.value;

@@ -40,4 +40,17 @@ public class HomeController : Controller
         ViewBag.Breadcrumb = new[] { ("Inicio", "/") };
         return View(vm);
     }
+
+    /// <summary>
+    /// Renueva la sesión inactiva mientras el usuario mantiene la pestaña abierta
+    /// (el write en sesión dispara el resellado de la cookie con nuevo IdleTimeout).
+    /// </summary>
+    [HttpGet]
+    public IActionResult KeepAlive()
+    {
+        if (HttpContext.Session.IsAvailable)
+            HttpContext.Session.SetString("LastKeepAlive", DateTime.UtcNow.Ticks.ToString());
+
+        return Ok();
+    }
 }

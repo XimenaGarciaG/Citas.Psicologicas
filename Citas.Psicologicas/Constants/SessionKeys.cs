@@ -8,4 +8,5 @@ public static class SessionKeys
     public const string Correo = "Correo";
     public const string IdUsuario = "IdUsuario";
     public const string NombreCompleto = "NombreCompleto";
+    public const string ExpiraSesion = "ExpiraSesion";
 }

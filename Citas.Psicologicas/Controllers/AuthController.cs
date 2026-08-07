@@ -5,6 +5,7 @@ using Citas.Psicologicas.Helpers;
 using Citas.Psicologicas.Interfaces;
 using Citas.Psicologicas.ViewModels.Auth;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Citas.Psicologicas.Controllers;
 
@@ -42,6 +43,7 @@ public class AuthController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting("Auth")]
     public async Task<IActionResult> Login(LoginViewModel model)
     {
         if (!ModelState.IsValid)
@@ -83,6 +85,12 @@ public class AuthController : Controller
             result.Data.GetIdUsuarioString(),
             nombreMostrar);
 
+        // Expiración absoluta: la sesión caduca como máximo a las 12 horas,
+        // aunque el usuario esté activo (refuerza el cierre ante robo de sesión).
+        HttpContext.Session.SetString(
+            SessionKeys.ExpiraSesion,
+            DateTime.Now.AddHours(12).ToString("o"));
+
         _logger.LogInformation("Usuario {Correo} autenticado con rol {Rol}", result.Data.Correo, result.Data.Rol);
         TempData["Success"] = $"Bienvenido/a, {nombreMostrar}";
 
@@ -103,6 +111,7 @@ public class AuthController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting("Auth")]
     public async Task<IActionResult> Register(RegisterViewModel model)
     {
         if (!ModelState.IsValid)
@@ -156,6 +165,7 @@ public class AuthController : Controller
     // POST: /Auth/ForgotPassword
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting("Auth")]
     public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
     {
         if (!ModelState.IsValid)
@@ -165,7 +175,7 @@ public class AuthController : Controller
         _localData.SetResetToken(model.Correo, token);
         _logger.LogInformation("Token de recuperación generado para: {Correo}", model.Correo);
 
-        var resetUrl = Url.Action("ResetPassword", "Auth", new { correo = model.Correo, token }, Request.Scheme);
+        var resetUrl = Url.Action("ResetPassword", "Auth", new { token }, Request.Scheme);
         model.ResetLink = resetUrl;
 
         var body = $@"
@@ -180,23 +190,37 @@ public class AuthController : Controller
         return View(model);
     }
 
-    // GET: /Auth/ResetPassword?correo=...&token=...
+    // GET: /Auth/ResetPassword?token=...
     [HttpGet]
-    public IActionResult ResetPassword(string? correo, string? token)
+    public IActionResult ResetPassword(string? token)
     {
         if (SessionHelper.IsAuthenticated(HttpContext.Session))
             return RedirectToAction("Index", "Home");
 
+        if (string.IsNullOrWhiteSpace(token))
+            return RedirectToAction("ForgotPassword");
+
+        // El correo se resuelve a partir del token; nunca viaja en la URL.
+        var correo = _localData.GetEmailByResetToken(token);
+        if (string.IsNullOrEmpty(correo))
+        {
+            return View(new ResetPasswordViewModel
+            {
+                ErrorMessage = "El enlace de recuperación no es válido o ya fue utilizado."
+            });
+        }
+
         return View(new ResetPasswordViewModel
         {
-            Correo = correo ?? string.Empty,
-            Token = token ?? string.Empty
+            Correo = correo,
+            Token = token
         });
     }
 
     // POST: /Auth/ResetPassword
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting("Auth")]
     public IActionResult ResetPassword(ResetPasswordViewModel model)
     {
         if (!ModelState.IsValid)

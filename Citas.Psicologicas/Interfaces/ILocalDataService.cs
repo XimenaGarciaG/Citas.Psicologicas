@@ -66,5 +66,6 @@ public interface ILocalDataService
 
     void SetResetToken(string email, string token);
     string? GetResetToken(string email);
+    string? GetEmailByResetToken(string token);
     void RemoveResetToken(string email);
 }

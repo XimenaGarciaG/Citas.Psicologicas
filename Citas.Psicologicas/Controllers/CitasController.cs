@@ -91,7 +91,8 @@ public class CitasController : Controller
         ViewBag.CitasJson = System.Text.Json.JsonSerializer.Serialize(citas,
             new System.Text.Json.JsonSerializerOptions
             {
-                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Default
             });
         return View("Index", vm);
     }
@@ -381,6 +382,17 @@ public class CitasController : Controller
                 cita.Fecha > DateTime.Now.AddHours(config.VentanaCancelacionHoras);
 
             vm.PuedeConfirmarAsistencia = EsConfirmable(cita, config) && !vm.AsistenciaConfirmada;
+        }
+
+        // ¿La sesión está en curso ahora mismo?
+        // La cita es "en curso" cuando: la fecha es hoy Y la hora actual está entre HoraInicio y HoraFin + MinutosTolerancia.
+        if (cita.Fecha.Date == DateTime.Today &&
+            TimeSpan.TryParse(FormatearHora(cita.HoraInicio), out var sesIni) &&
+            TimeSpan.TryParse(FormatearHora(cita.HoraFin), out var sesFin))
+        {
+            var ahora = DateTime.Now.TimeOfDay;
+            var tolerancia = TimeSpan.FromMinutes(config.MinutosTolerancia > 0 ? config.MinutosTolerancia : 15);
+            vm.EsSesionEnCurso = ahora >= sesIni && ahora <= sesFin.Add(tolerancia);
         }
 
         ViewBag.PageTitle = "Detalle de Cita";

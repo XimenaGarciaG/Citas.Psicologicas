@@ -22,4 +22,23 @@ public class NotificacionService : BaseApiService, INotificacionService
         }
         return true;
     }
+
+    /// <inheritdoc/>
+    public async Task<bool> EnviarCorreoPersonalizadoAsync(string emailDestino, string asunto, string cuerpoHtml)
+    {
+        var dto = new NotificacionRequestDto
+        {
+            EmailDestino = emailDestino,
+            Asunto = asunto,
+            CuerpoHtml = cuerpoHtml
+        };
+
+        var result = await PostAsync<NotificacionResponseDto>(ApiRoutes.NotificacionesEnviar, dto);
+        if (!result.Success)
+        {
+            Logger.LogWarning("POST notificaciones/enviar (correo personalizado) -> {Message}", result.Message);
+            return false;
+        }
+        return true;
+    }
 }

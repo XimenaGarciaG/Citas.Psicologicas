@@ -15,20 +15,20 @@ public class AuthController : Controller
     private readonly IAuthService _authService;
     private readonly IUsuarioService _usuarioService;
     private readonly ILocalDataService _localData;
-    private readonly IEmailService _emailService;
+    private readonly INotificacionService _notificacionService;
     private readonly ILogger<AuthController> _logger;
 
     public AuthController(
         IAuthService authService,
         IUsuarioService usuarioService,
         ILocalDataService localData,
-        IEmailService emailService,
+        INotificacionService notificacionService,
         ILogger<AuthController> logger)
     {
         _authService = authService;
         _usuarioService = usuarioService;
         _localData = localData;
-        _emailService = emailService;
+        _notificacionService = notificacionService;
         _logger = logger;
     }
 
@@ -185,7 +185,13 @@ public class AuthController : Controller
             <p><a href='{resetUrl}'>{resetUrl}</a></p>
             <p>Si no solicitó este cambio, ignore este correo.</p>";
 
-        await _emailService.SendEmailAsync(model.Correo, "Restablecer contraseña - Citas Psicológicas", body);
+        var enviado = await _notificacionService.EnviarCorreoPersonalizadoAsync(model.Correo, "Restablecer contraseña - Citas Psicológicas", body);
+        if (!enviado)
+        {
+            _logger.LogWarning(
+                "No se pudo enviar el correo de recuperación a {Correo}; se muestra el enlace de respaldo.",
+                model.Correo);
+        }
 
         return View(model);
     }

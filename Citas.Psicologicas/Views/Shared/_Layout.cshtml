@@ -70,10 +70,10 @@
                 </a>
             }
 
-            @if (isAdmin || esEncargada || isEstud)
+            @if (isAdmin || isPsico || esEncargada || isEstud)
             {
                 <div class="nav-section-title">Solicitudes</div>
-                <a href="/Solicitudes" class="nav-item-link @(currentPath.StartsWith("/solicitudes") && !currentPath.StartsWith("/solicitudes/bandeja") ? "active" : "")">
+                <a href="/Solicitudes" class="nav-item-link @(currentPath.StartsWith("/solicitudes") ? "active" : "")">
                     <span class="nav-icon"><i class="fa fa-file-medical"></i></span>
                     <span class="nav-label">Solicitudes</span>
                 </a>
@@ -107,13 +107,6 @@
                 <a href="/Citas/MiDisponibilidad" class="nav-item-link @(currentPath.StartsWith("/citas/midisponibilidad") ? "active" : "")">
                     <span class="nav-icon"><i class="fa fa-user-clock"></i></span>
                     <span class="nav-label">Mi Disponibilidad</span>
-                </a>
-            }
-            @if (isPsico || isAdmin)
-            {
-                <a href="/Solicitudes/Bandeja" class="nav-item-link @(currentPath.StartsWith("/solicitudes/bandeja") ? "active" : "")">
-                    <span class="nav-icon"><i class="fa fa-inbox"></i></span>
-                    <span class="nav-label">Bandeja</span>
                 </a>
             }
             <a href="/Citas" class="nav-item-link @(currentPath.StartsWith("/citas") && !currentPath.StartsWith("/citas/agenda") && !currentPath.StartsWith("/citas/disponibilidad") ? "active" : "")">

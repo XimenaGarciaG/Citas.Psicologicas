@@ -162,8 +162,20 @@ public abstract class BaseApiService
 
             if (response.IsSuccessStatusCode)
             {
-                var data = JsonSerializer.Deserialize<T>(responseContent, JsonOptions);
-                return ApiResponseHelper.Ok(data!);
+                try
+                {
+                    var data = JsonSerializer.Deserialize<T>(responseContent, JsonOptions);
+                    return ApiResponseHelper.Ok(data!);
+                }
+                catch (JsonException)
+                {
+                    // Algunas operaciones PATCH (p. ej. confirmar/cancelar cita) responden 2xx
+                    // con cuerpo vacío o no deserializable al tipo T. La acción sí se ejecutó en
+                    // el servidor, por lo que se devuelve éxito en lugar de un falso error.
+                    Logger.LogDebug("PATCH {Url} -> 2xx con cuerpo no deserializable a {Type}: {Body}",
+                        url, typeof(T).Name, responseContent);
+                    return ApiResponseHelper.Ok(default(T)!);
+                }
             }
             var msg = ExtraerMensaje(responseContent);
             return ApiResponseHelper.Fail<T>($"Error del servidor: {response.StatusCode}" +

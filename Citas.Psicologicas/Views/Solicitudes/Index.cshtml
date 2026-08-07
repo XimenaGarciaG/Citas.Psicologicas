@@ -1,15 +1,14 @@
 @model Citas.Psicologicas.ViewModels.Solicitudes.SolicitudIndexViewModel
 @{
-    ViewBag.PageTitle = ViewBag.EsBandeja == true ? "Bandeja de Solicitudes" : "Solicitudes";
+    ViewBag.PageTitle = "Solicitudes";
     var rol = Context.Session.GetString("Rol") ?? "";
-    var esBandeja = ViewBag.EsBandeja == true;
     var mostrarGeneral = ViewBag.MostrarListadoGeneral != false;
 }
 
 <div class="animate-fade-up">
     <div class="page-header">
         <div>
-            <h1 class="page-header-title"><i class="fa fa-file-medical me-2"></i>@(esBandeja ? "Bandeja de Solicitudes" : "Solicitudes de Atención")</h1>
+            <h1 class="page-header-title"><i class="fa fa-file-medical me-2"></i>Solicitudes de Atención</h1>
             @if (mostrarGeneral)
             {
                 <p class="page-header-subtitle">@Model.Total solicitud(es) &bull; @Model.Pendientes pendiente(s)</p>
@@ -189,7 +188,7 @@
         </div>
     }
 
-    @if (esBandeja && !mostrarGeneral && !(ViewBag.SolicitudesCalendario is System.Collections.Generic.List<Citas.Psicologicas.Models.SolicitudCalendario> listaBandeja && listaBandeja.Any()))
+    @if (!mostrarGeneral && !(ViewBag.SolicitudesCalendario is System.Collections.Generic.List<Citas.Psicologicas.Models.SolicitudCalendario> listaCalendario && listaCalendario.Any()))
     {
         <div class="card">
             <div class="card-body">

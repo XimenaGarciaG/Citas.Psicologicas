@@ -102,7 +102,7 @@ public class CitasController : Controller
         return await Index(estado, null, null, null, "Calendario");
     }
 
-    // GET: /Citas/Create  (idSolicitud: pre-selecciona la solicitud desde Bandeja/Detalle)
+    // GET: /Citas/Create  (idSolicitud: pre-selecciona la solicitud desde Solicitudes/Detalle)
     [AuthorizeRole(Roles.Administrador, Roles.Psicologo)]
     public async Task<IActionResult> Create(string? idSolicitud)
     {
@@ -237,7 +237,7 @@ public class CitasController : Controller
         return View(model);
     }
 
-    // POST: /Citas/AsignarDirecta/{idSolicitud}  (agenda directo la cita preseleccionada desde la bandeja)
+    // POST: /Citas/AsignarDirecta/{idSolicitud}  (agenda directo la cita preseleccionada desde las solicitudes)
     [HttpPost]
     [ValidateAntiForgeryToken]
     [AuthorizeRole(Roles.Administrador, Roles.Psicologo)]
@@ -251,20 +251,20 @@ public class CitasController : Controller
         if (sc is null)
         {
             TempData["Error"] = "La solicitud directa no fue encontrada o ya fue atendida.";
-            return RedirectToAction("Bandeja", "Solicitudes");
+            return RedirectToAction("Index", "Solicitudes");
         }
 
         var solicitud = (await _solicitudService.GetByIdAsync(idSolicitud, token)).Data;
         if (solicitud is null || !PuedeAsignarSolicitud(solicitud))
         {
             TempData["Error"] = "No tiene permisos para agendar esta solicitud.";
-            return RedirectToAction("Bandeja", "Solicitudes");
+            return RedirectToAction("Index", "Solicitudes");
         }
 
         if (string.IsNullOrEmpty(sc.IdPsicologo))
         {
             TempData["Error"] = "La solicitud no tiene una psicóloga preseleccionada.";
-            return RedirectToAction("Bandeja", "Solicitudes");
+            return RedirectToAction("Index", "Solicitudes");
         }
 
         var config = _localData.GetConfiguracion();
@@ -287,7 +287,7 @@ public class CitasController : Controller
         if (string.IsNullOrEmpty(idPsicologoAsignada))
         {
             TempData["Error"] = "La psicóloga preseleccionada no tiene disponibilidad en la fecha/horario solicitado.";
-            return RedirectToAction("Bandeja", "Solicitudes");
+            return RedirectToAction("Index", "Solicitudes");
         }
 
         var dto = new CreateCitaDto
@@ -304,7 +304,7 @@ public class CitasController : Controller
         if (!result.Success)
         {
             TempData["Error"] = result.Message ?? "No se pudo agendar la cita.";
-            return RedirectToAction("Bandeja", "Solicitudes");
+            return RedirectToAction("Index", "Solicitudes");
         }
 
         _localData.MarcarSolicitudCalendarioAtendida(sc.Id);
@@ -837,7 +837,7 @@ public class CitasController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        // Crea una solicitud presencial para el estudiante en la bandeja, para agendarla por el flujo normal.
+        // Crea una solicitud presencial para el estudiante, para agendarla por el flujo normal.
         var result = await _solicitudService.CreateAsync(new CreateSolicitudDto
         {
             IdEstudiante = idEstudiante,
@@ -851,7 +851,7 @@ public class CitasController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        TempData["Success"] = "Solicitud de próxima cita generada. Complete el agendado desde la bandeja.";
+        TempData["Success"] = "Solicitud de próxima cita generada. Complete el agendado desde solicitudes.";
 
         // Si quien la genera es una psicóloga, la solicitud queda dirigida a ella (como en el
         // calendario de disponibilidad), para que PuedeAsignarSolicitud la deje agendar.

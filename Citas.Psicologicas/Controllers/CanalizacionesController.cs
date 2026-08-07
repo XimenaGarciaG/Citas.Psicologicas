@@ -121,7 +121,7 @@ public class CanalizacionesController : Controller
         var idCanalizacion = result.Data?.Id ?? string.Empty;
 
         // La canalización del tutor genera automáticamente una solicitud de atención (origen TITULAR)
-        // para el estudiante; así puede ser agendada desde la bandeja de solicitudes.
+        // para el estudiante; así puede ser agendada desde la vista de solicitudes.
         var solicitud = await _solicitudService.CreateAsync(new CreateSolicitudDto
         {
             IdEstudiante = int.TryParse(model.IdEstudiante, out var idEst2) ? idEst2 : 0,

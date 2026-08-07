@@ -1,0 +1,62 @@
+@model Citas.Psicologicas.Models.SeguimientoRegistro
+@{
+    ViewBag.PageTitle = "Editar Seguimiento";
+}
+
+<div class="animate-fade-up">
+    <div class="page-header mb-4">
+        <div>
+            <h1 class="page-header-title"><i class="fa fa-pencil me-2"></i>Editar Seguimiento</h1>
+            <p class="page-header-subtitle">Modificar datos del seguimiento registrado</p>
+        </div>
+        <a href="/Seguimientos" class="btn btn-outline-secondary">
+            <i class="fa fa-arrow-left me-1"></i> Volver a la lista
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form asp-action="Edit" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="Id" />
+                <input type="hidden" asp-for="IdCita" />
+                <input type="hidden" asp-for="IdSolicitud" />
+                <input type="hidden" asp-for="IdEstudiante" />
+                <input type="hidden" asp-for="IdPsicologo" />
+                <input type="hidden" asp-for="NombrePsicologo" />
+                <input type="hidden" asp-for="FechaRegistro" />
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label asp-for="NombreEstudiante" class="form-label fw-600">Nombre del Estudiante *</label>
+                        <input asp-for="NombreEstudiante" class="form-control" required />
+                        <span asp-validation-for="NombreEstudiante" class="text-danger small"></span>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label asp-for="FechaProgramada" class="form-label fw-600">Próxima Fecha Programada</label>
+                        <input asp-for="FechaProgramada" type="date" class="form-control" value="@(Model.FechaProgramada?.ToString("yyyy-MM-dd"))" />
+                        <span asp-validation-for="FechaProgramada" class="text-danger small"></span>
+                    </div>
+
+                    <div class="col-12">
+                        <label asp-for="Motivo" class="form-label fw-600">Motivo del Seguimiento</label>
+                        <input asp-for="Motivo" class="form-control" placeholder="Ej. Evaluación inicial, Sesión 2 de control" />
+                    </div>
+
+                    <div class="col-12">
+                        <label asp-for="Notas" class="form-label fw-600">Notas de la Sesión</label>
+                        <textarea asp-for="Notas" class="form-control" rows="4" placeholder="Observaciones clinicas y compromisos para la siguiente cita..."></textarea>
+                    </div>
+
+                    <div class="col-12 mt-4 d-flex justify-content-end gap-2">
+                        <a href="/Seguimientos" class="btn btn-light">Cancelar</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fa fa-save me-1"></i> Guardar Cambios
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

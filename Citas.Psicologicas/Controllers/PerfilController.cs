@@ -1,4 +1,6 @@
+using Citas.Psicologicas.Constants;
 using Citas.Psicologicas.Extensions;
+using Citas.Psicologicas.Filters;
 using Citas.Psicologicas.Helpers;
 using Citas.Psicologicas.Interfaces;
 using Citas.Psicologicas.ViewModels.Perfil;
@@ -7,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Citas.Psicologicas.Controllers;
 
 /// <summary>Controlador de perfil del usuario autenticado</summary>
+[AuthorizeRole(Roles.Administrador, Roles.Psicologo, Roles.Tutor, Roles.Estudiante)]
 public class PerfilController : Controller
 {
     private readonly IUsuarioService _usuarioService;

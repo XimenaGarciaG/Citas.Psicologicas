@@ -1,3 +1,5 @@
+using Citas.Psicologicas.Constants;
+using Citas.Psicologicas.Filters;
 using Citas.Psicologicas.Helpers;
 using Citas.Psicologicas.Interfaces;
 using Citas.Psicologicas.ViewModels.Dashboard;
@@ -6,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Citas.Psicologicas.Controllers;
 
 /// <summary>Controlador principal – Dashboard del sistema</summary>
+[AuthorizeRole(Roles.Administrador, Roles.Psicologo, Roles.Tutor, Roles.Estudiante)]
 public class HomeController : Controller
 {
     private readonly IDashboardService _dashboardService;

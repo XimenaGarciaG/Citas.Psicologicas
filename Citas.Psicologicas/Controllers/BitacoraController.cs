@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Citas.Psicologicas.Controllers;
 
-/// <summary>Controlador de bitácora de asistencia administrativa</summary>
+/// <summary>Controlador de bitácora de asistencia personal y administrativa</summary>
 [AuthorizeRole(Roles.Administrador, Roles.Psicologo)]
 public class BitacoraController : Controller
 {
@@ -33,9 +33,21 @@ public class BitacoraController : Controller
     public async Task<IActionResult> Index(string? busqueda, DateTime? fecha)
     {
         var token = SessionHelper.GetToken(HttpContext.Session)!;
-        var result = await _bitacoraService.GetAllAsync(token);
+        var rol = SessionHelper.GetRol(HttpContext.Session);
+        var idUsuario = SessionHelper.GetIdUsuario(HttpContext.Session) ?? string.Empty;
+        var nombreUsuario = SessionHelper.GetNombreCompleto(HttpContext.Session) ?? string.Empty;
+        var esEncargada = SessionHelper.EsPsicologaEncargada(HttpContext.Session, _localData);
 
+        var result = await _bitacoraService.GetAllAsync(token);
         var registros = result.Data ?? [];
+
+        // Filtrado por Bitácora Personal: la psicóloga regular ve sus propias asistencias registradas
+        if (rol == Roles.Psicologo && !esEncargada)
+        {
+            registros = registros.Where(r =>
+                !string.IsNullOrEmpty(r.NombrePsicologo) && r.NombrePsicologo.Contains(nombreUsuario, StringComparison.OrdinalIgnoreCase)
+            ).ToList();
+        }
 
         if (!string.IsNullOrEmpty(busqueda))
             registros = registros.Where(r =>
@@ -46,11 +58,19 @@ public class BitacoraController : Controller
         if (fecha.HasValue)
             registros = registros.Where(r => r.FechaCita?.Date == fecha.Value.Date).ToList();
 
-        // Registros enviados por la psicóloga y pendientes de confirmación del estudiante.
+        // Registros pendientes enviados por la psicóloga y pendientes de confirmación por email
         var pendientes = _localData.GetBitacorasPendientes()
             .Where(b => !b.Confirmada)
             .OrderByDescending(b => b.FechaEnvio)
             .ToList();
+
+        if (rol == Roles.Psicologo && !esEncargada)
+        {
+            pendientes = pendientes.Where(b =>
+                string.Equals(b.IdPsicologo, idUsuario, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrEmpty(b.NombrePsicologo) && b.NombrePsicologo.Contains(nombreUsuario, StringComparison.OrdinalIgnoreCase))
+            ).ToList();
+        }
 
         var vm = new BitacoraIndexViewModel
         {
@@ -60,68 +80,14 @@ public class BitacoraController : Controller
             FiltroFecha = fecha
         };
 
-        ViewBag.PageTitle = "Bitácora de Asistencia";
+        ViewBag.PageTitle = "Bitácora Personal de Asistencia";
         return View(vm);
     }
 
-    public async Task<IActionResult> Create()
+    public IActionResult Create()
     {
-        var token = SessionHelper.GetToken(HttpContext.Session)!;
-        var citasResult = await _citaService.GetAllAsync(token);
-        var citasSinRegistro = citasResult.Data?
-            .Where(c => c.Estado is EstadosCita.Confirmada or EstadosCita.Reservada)
-            .OrderBy(c => c.Fecha)
-            .ToList() ?? [];
-
-        var vm = new BitacoraCreateViewModel { CitasSinRegistro = citasSinRegistro };
-        ViewBag.PageTitle = "Registrar Asistencia";
-        return View(vm);
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(BitacoraCreateViewModel model)
-    {
-        var token = SessionHelper.GetToken(HttpContext.Session)!;
-
-        if (!ModelState.IsValid)
-        {
-            var citasResult = await _citaService.GetAllAsync(token);
-            model.CitasSinRegistro = citasResult.Data
-                ?.Where(c => c.Estado is EstadosCita.Confirmada or EstadosCita.Reservada).ToList() ?? [];
-            return View(model);
-        }
-
-        var citaResult = await _citaService.GetByIdAsync(model.IdCita, token);
-        if (!citaResult.Success || citaResult.Data is null)
-        {
-            TempData["Error"] = "No se encontró la cita seleccionada.";
-            return RedirectToAction(nameof(Index));
-        }
-
-        var cita = citaResult.Data;
-
-        // Flujo de 2 fases: la psicóloga llena y envía el registro; el estudiante
-        // lo confirma y solo entonces se registra en la API (bitácora).
-        _localData.AddBitacoraPendiente(new BitacoraPendiente
-        {
-            IdCita = cita.Id,
-            IdSolicitud = cita.IdSolicitud?.ToString() ?? string.Empty,
-            IdEstudiante = cita.IdEstudianteStr,
-            IdPsicologo = cita.IdPsicologoStr,
-            NombreEstudiante = cita.NombreEstudiante ?? string.Empty,
-            NombrePsicologo = cita.NombrePsicologo ?? string.Empty,
-            Asistencia = model.Asistencia,
-            Observaciones = model.Observaciones ?? string.Empty,
-            AcuerdoSeguimiento = model.AcuerdoSeguimiento,
-            FechaEnvio = DateTime.Now
-        });
-
-        _logger.LogInformation("Bitácora de la cita {Cita} enviada por {Psicologo}; pendiente de confirmación del estudiante",
-            cita.Id, SessionHelper.GetNombreCompleto(HttpContext.Session));
-
-        TempData["Success"] = "Registro enviado. El estudiante debe confirmarlo para que quede registrado en la bitácora.";
-        return RedirectToAction(nameof(Index));
+        TempData["Info"] = "Las bitácoras se generan y envían directamente desde el detalle de cada cita finalizada.";
+        return RedirectToAction("Index", "Citas");
     }
 
     // GET: /Bitacora/Details/{id}

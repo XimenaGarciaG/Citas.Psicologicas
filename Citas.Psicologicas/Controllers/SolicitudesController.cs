@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Citas.Psicologicas.Controllers;
 
 /// <summary>Controlador de solicitudes de atención psicológica</summary>
-[AuthorizeRole(Roles.Administrador, Roles.Psicologo, Roles.Estudiante)]
+[AuthorizeRole(Roles.Administrador, Roles.Psicologo, Roles.Tutor, Roles.Estudiante)]
 public class SolicitudesController : Controller
 {
     private readonly ISolicitudService _solicitudService;
@@ -86,6 +86,16 @@ public class SolicitudesController : Controller
                     string.Equals(s.IdEstudianteStr, idUsuario, StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(s.IdEstudiante?.ToString(), idUsuario, StringComparison.OrdinalIgnoreCase)
                 )).ToList();
+        }
+        else if (rol == Roles.Tutor)
+        {
+            var idUsuario = SessionHelper.GetIdUsuario(HttpContext.Session);
+            var idsSolicitudesCanalizadas = _localData.GetCanalizacionesSolicitudes()
+                .Where(cs => string.Equals(cs.IdTutor, idUsuario, StringComparison.OrdinalIgnoreCase))
+                .Select(cs => cs.IdSolicitud)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            solicitudes = solicitudes.Where(s => idsSolicitudesCanalizadas.Contains(s.Id)).ToList();
         }
 
         if (!string.IsNullOrEmpty(estado))

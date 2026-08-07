@@ -204,6 +204,102 @@
                         }
                     </div>
                 </div>
+
+                <!-- Registrar y Enviar Bitácora al Alumno (psicóloga / admin) -->
+                <div class="card mt-3">
+                    <div class="card-header bg-light">
+                        <h2 class="card-title h6 mb-0"><i class="fa fa-paper-plane me-1"></i>Enviar Bitácora al Alumno por Email</h2>
+                    </div>
+                    <div class="card-body">
+                        @if (Model.BitacoraPendiente is not null)
+                        {
+                            @if (Model.BitacoraPendiente.Confirmada)
+                            {
+                                <div class="alert alert-success py-2 small mb-3">
+                                    <i class="fa fa-check-circle me-1"></i> Bitácora confirmada por el alumno el @(Model.BitacoraPendiente.FechaConfirmacion?.ToString("dd/MM/yyyy HH:mm"))
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="alert alert-warning py-2 small mb-3">
+                                    <i class="fa fa-clock me-1"></i> Bitácora enviada el @(Model.BitacoraPendiente.FechaEnvio.ToString("dd/MM/yyyy HH:mm")) — Pendiente de confirmación por el estudiante.
+                                </div>
+                            }
+                        }
+                        <form asp-action="EnviarBitacora" asp-route-id="@Model.Cita.Id" method="post">
+                            @Html.AntiForgeryToken()
+                            <div class="mb-3">
+                                <label class="form-label fw-600">Asistencia del estudiante</label>
+                                <div class="d-flex gap-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="asistencia" id="radAsistio" value="true" checked="@(Model.BitacoraPendiente?.Asistencia != false)">
+                                        <label class="form-check-label text-success fw-600" for="radAsistio"><i class="fa fa-check me-1"></i> Asistió</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="asistencia" id="radNoAsistio" value="false" checked="@(Model.BitacoraPendiente?.Asistencia == false)">
+                                        <label class="form-check-label text-danger fw-600" for="radNoAsistio"><i class="fa fa-xmark me-1"></i> No asistió</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-600">Observaciones para la Bitácora</label>
+                                <textarea name="observaciones" class="form-control" rows="3" placeholder="Resumen o notas de asistencia...">@(Model.BitacoraPendiente?.Observaciones)</textarea>
+                            </div>
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" name="acuerdoSeguimiento" value="true" id="chkAcuerdo" checked="@(Model.BitacoraPendiente?.AcuerdoSeguimiento == true)">
+                                <label class="form-check-label" for="chkAcuerdo">Acuerdo de seguimiento en sesión</label>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fa fa-paper-plane me-1"></i> Enviar Bitácora al Alumno por Email
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            }
+
+            <!-- Agendar Nueva Cita de Seguimiento (psicóloga / admin) -->
+            @if (rol == Roles.Administrador || rol == Roles.Psicologo)
+            {
+                <div class="card mt-3">
+                    <div class="card-header bg-light">
+                        <h2 class="card-title h6 mb-0">
+                            <i class="fa fa-calendar-plus me-1"></i>Agendar Nueva Cita de Seguimiento
+                        </h2>
+                    </div>
+                    <div class="card-body">
+                        <form asp-action="AgendarDesdeDetails" asp-route-id="@Model.Cita.Id" method="post" id="formNuevaCita">
+                            @Html.AntiForgeryToken()
+                            <div class="mb-3">
+                                <label class="form-label fw-600">Fecha de la nueva cita</label>
+                                <input type="date"
+                                       name="nuevaFecha"
+                                       id="inputNuevaCitaFecha"
+                                       class="form-control"
+                                       min="@DateTime.Today.AddDays(1).ToString("yyyy-MM-dd")"
+                                       required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-600">Horario disponible</label>
+                                <select name="nuevaHoraInicio" id="selectNuevaCitaHora" class="form-select" required disabled>
+                                    <option value="">— Seleccione una fecha primero —</option>
+                                </select>
+                                <div id="horarioLoadingMsg" class="text-muted small mt-1 d-none">
+                                    <i class="fa fa-spinner fa-spin me-1"></i>Cargando horarios disponibles...
+                                </div>
+                                <div id="horarioSinSlots" class="text-danger small mt-1 d-none">
+                                    <i class="fa fa-triangle-exclamation me-1"></i>No hay horarios disponibles para esa fecha.
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Motivo / Notas <span class="text-muted small">(opcional)</span></label>
+                                <textarea name="nuevaMotivo" class="form-control" rows="2" placeholder="Cita de seguimiento, motivo de consulta..."></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-success w-100" id="btnAgendarNueva" disabled>
+                                <i class="fa fa-calendar-check me-1"></i>Agendar Cita de Seguimiento
+                            </button>
+                        </form>
+                    </div>
+                </div>
             }
 
             <!-- Bitácora pendiente de confirmación (estudiante) -->
@@ -296,6 +392,7 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script>
+        // Toggle fecha próxima en seguimiento
         var chkProxima = document.getElementById('chkProxima');
         var divFechaProxima = document.getElementById('divFechaProxima');
         if (chkProxima && divFechaProxima) {
@@ -303,5 +400,70 @@
                 divFechaProxima.style.display = this.checked ? 'block' : 'none';
             });
         }
+
+        // AJAX: cargar horarios disponibles al cambiar la fecha de nueva cita
+        (function () {
+            var inputFecha = document.getElementById('inputNuevaCitaFecha');
+            var selectHora = document.getElementById('selectNuevaCitaHora');
+            var btnAgendar = document.getElementById('btnAgendarNueva');
+            var msgLoading = document.getElementById('horarioLoadingMsg');
+            var msgSinSlots = document.getElementById('horarioSinSlots');
+
+            if (!inputFecha || !selectHora) return;
+
+            // La psicóloga de la cita actual (necesaria para el endpoint)
+            var idPsicologo = '@Html.Raw(Model.Cita.IdPsicologoStr)';
+
+            inputFecha.addEventListener('change', function () {
+                var fecha = this.value;
+                if (!fecha) return;
+
+                // UI: cargando
+                selectHora.disabled = true;
+                btnAgendar.disabled = true;
+                msgLoading.classList.remove('d-none');
+                msgSinSlots.classList.add('d-none');
+                selectHora.innerHTML = '<option value="">Cargando...</option>';
+
+                fetch('/Citas/DisponibilidadJson?idPsicologo=' + encodeURIComponent(idPsicologo) + '&fecha=' + encodeURIComponent(fecha))
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        msgLoading.classList.add('d-none');
+                        selectHora.innerHTML = '';
+
+                        if (!data.horarios || data.horarios.length === 0) {
+                            selectHora.innerHTML = '<option value="">Sin horarios disponibles</option>';
+                            msgSinSlots.classList.remove('d-none');
+                            return;
+                        }
+
+                        var defaultOpt = document.createElement('option');
+                        defaultOpt.value = '';
+                        defaultOpt.textContent = '— Seleccione un horario —';
+                        selectHora.appendChild(defaultOpt);
+
+                        data.horarios.forEach(function (h) {
+                            var opt = document.createElement('option');
+                            opt.value = h;
+                            opt.textContent = h;
+                            selectHora.appendChild(opt);
+                        });
+
+                        selectHora.disabled = false;
+                        selectHora.addEventListener('change', function () {
+                            btnAgendar.disabled = !this.value;
+                        }, { once: true });
+                    })
+                    .catch(function () {
+                        msgLoading.classList.add('d-none');
+                        selectHora.innerHTML = '<option value="">Error al cargar horarios</option>';
+                    });
+            });
+
+            // Habilitar botón cuando cambia la selección de hora
+            selectHora.addEventListener('change', function () {
+                btnAgendar.disabled = !this.value;
+            });
+        })();
     </script>
 }

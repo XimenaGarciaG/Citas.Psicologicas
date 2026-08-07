@@ -14,17 +14,20 @@ public class AuthController : Controller
     private readonly IAuthService _authService;
     private readonly IUsuarioService _usuarioService;
     private readonly ILocalDataService _localData;
+    private readonly IEmailService _emailService;
     private readonly ILogger<AuthController> _logger;
 
     public AuthController(
         IAuthService authService,
         IUsuarioService usuarioService,
         ILocalDataService localData,
+        IEmailService emailService,
         ILogger<AuthController> logger)
     {
         _authService = authService;
         _usuarioService = usuarioService;
         _localData = localData;
+        _emailService = emailService;
         _logger = logger;
     }
 
@@ -153,19 +156,27 @@ public class AuthController : Controller
     // POST: /Auth/ForgotPassword
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult ForgotPassword(ForgotPasswordViewModel model)
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
     {
         if (!ModelState.IsValid)
             return View(model);
 
-        // Genera el token y lo guarda en el respaldo local (sin correo real configurado).
         var token = Guid.NewGuid().ToString("N");
         _localData.SetResetToken(model.Correo, token);
         _logger.LogInformation("Token de recuperación generado para: {Correo}", model.Correo);
 
-        // Respuesta genérica de seguridad; el enlace solo se muestra en modo respaldo local
-        // para que el flujo funcione sin un servicio de correo configurado.
-        model.ResetLink = Url.Action("ResetPassword", "Auth", new { correo = model.Correo, token });
+        var resetUrl = Url.Action("ResetPassword", "Auth", new { correo = model.Correo, token }, Request.Scheme);
+        model.ResetLink = resetUrl;
+
+        var body = $@"
+            <h2>Restablecimiento de Contraseña</h2>
+            <p>Se ha solicitado restablecer la contraseña para la cuenta <strong>{model.Correo}</strong>.</p>
+            <p>Haga clic en el siguiente enlace para restablecer su contraseña:</p>
+            <p><a href='{resetUrl}'>{resetUrl}</a></p>
+            <p>Si no solicitó este cambio, ignore este correo.</p>";
+
+        await _emailService.SendEmailAsync(model.Correo, "Restablecer contraseña - Citas Psicológicas", body);
+
         return View(model);
     }
 

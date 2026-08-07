@@ -154,4 +154,25 @@ public class CanalizacionesController : Controller
 
         return RedirectToAction(nameof(Index));
     }
+
+    // GET: /Canalizaciones/Details/{id}
+    public async Task<IActionResult> Details(string id)
+    {
+        var token = SessionHelper.GetToken(HttpContext.Session)!;
+        var canalizaciones = (await _canalizacionService.GetAllAsync(token)).Data ?? [];
+        var canalizacion = canalizaciones.FirstOrDefault(c => c.Id == id);
+
+        if (canalizacion is null)
+        {
+            TempData["Error"] = "Canalización no encontrada.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var vinculo = _localData.GetCanalizacionesSolicitudes().FirstOrDefault(v => v.IdCanalizacion == id);
+        ViewBag.VinculoSolicitud = vinculo;
+        ViewBag.PageTitle = "Detalle de Canalización";
+        ViewBag.Breadcrumb = new[] { ("Canalizaciones", "/Canalizaciones"), ("Detalle", "") };
+
+        return View(canalizacion);
+    }
 }

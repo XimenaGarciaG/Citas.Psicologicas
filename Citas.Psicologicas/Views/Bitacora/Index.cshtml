@@ -6,15 +6,20 @@
 <div class="animate-fade-up">
     <div class="page-header">
         <div>
-            <h1 class="page-header-title"><i class="fa fa-book-open me-2"></i>Bitácora de Asistencia</h1>
+            <h1 class="page-header-title"><i class="fa fa-book-open me-2"></i>Bitácora Personal de Asistencia</h1>
             <p class="page-header-subtitle">
                 <span class="text-success fw-600">@Model.TotalAsistencias asistencias</span> &bull;
                 <span class="text-danger fw-600">@Model.TotalInasistencias inasistencias</span>
             </p>
         </div>
-        <a href="/Bitacora/Create" class="btn btn-primary">
-            <i class="fa fa-plus me-1"></i> Registrar Asistencia
-        </a>
+    </div>
+
+    <div class="alert alert-info border-0 shadow-sm mb-4 d-flex align-items-center gap-3">
+        <i class="fa fa-circle-info fs-3 text-info"></i>
+        <div>
+            <strong>Proceso Automatizado de Bitácora:</strong>
+            Las bitácoras se generan y envían directamente desde el detalle de cada cita finalizada (<a href="/Citas" class="alert-link">Agenda de Citas</a>). Al presionar <em>"Enviar Bitácora por Email"</em>, el alumno recibe la notificación por correo y, al confirmar, se almacena síncronamente en su bitácora personal.
+        </div>
     </div>
 
     <div class="card mb-4">
@@ -89,7 +94,7 @@
                     <i class="fa fa-book empty-state-icon"></i>
                     <div class="empty-state-title">Sin registros</div>
                     <p class="empty-state-text">No hay registros de asistencia con los filtros aplicados.</p>
-                    <a href="/Bitacora/Create" class="btn btn-primary">Registrar asistencia</a>
+                    <a href="/Citas" class="btn btn-primary"><i class="fa fa-calendar-check me-1"></i> Ir a Agenda de Citas</a>
                 </div>
             }
             else

@@ -68,4 +68,23 @@ public class CitaDetalleViewModel
 
     /// <summary>Bitácora enviada por la psicóloga pendiente de confirmación del estudiante</summary>
     public BitacoraPendiente? BitacoraPendiente { get; set; }
+
+    // ─── Nueva cita rápida desde el detalle (psicóloga) ─────────────────────
+
+    /// <summary>Fecha propuesta para la nueva cita de seguimiento</summary>
+    [DataType(DataType.Date)]
+    [Display(Name = "Fecha de la nueva cita")]
+    public DateTime? NuevaCitaFecha { get; set; }
+
+    /// <summary>Hora de inicio de la nueva cita (HH:mm)</summary>
+    [Display(Name = "Hora de inicio")]
+    public string? NuevaCitaHoraInicio { get; set; }
+
+    /// <summary>Motivo o nota para la nueva cita de seguimiento</summary>
+    [StringLength(500)]
+    [Display(Name = "Motivo / Notas")]
+    public string? NuevaCitaMotivo { get; set; }
+
+    /// <summary>Horarios disponibles de la psicóloga para el día elegido (cargados vía AJAX)</summary>
+    public List<string> HorariosDisponiblesNuevaCita { get; set; } = [];
 }

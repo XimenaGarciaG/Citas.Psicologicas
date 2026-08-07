@@ -8,6 +8,7 @@ using Citas.Psicologicas.ViewModels.Seguimientos;
 
 namespace Citas.Psicologicas.Controllers;
 
+[AuthorizeRole(Roles.Administrador, Roles.Psicologo, Roles.Tutor, Roles.Estudiante)]
 public class SeguimientosController : Controller
 {
     private readonly ILocalDataService _localData;
@@ -27,9 +28,27 @@ public class SeguimientosController : Controller
         ViewBag.PageTitle = "Seguimientos";
         ViewBag.Breadcrumb = new[] { ("Seguimientos", "/Seguimientos") };
 
+        var rol = SessionHelper.GetRol(HttpContext.Session);
+        var idUsuario = SessionHelper.GetIdUsuario(HttpContext.Session) ?? string.Empty;
+
         var registros = _localData.GetSeguimientos()
             .OrderByDescending(s => s.FechaRegistro)
             .ToList();
+
+        // Filtrar por rol
+        if (rol == Roles.Estudiante)
+        {
+            registros = registros.Where(s => string.Equals(s.IdEstudiante, idUsuario, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+        else if (rol == Roles.Tutor)
+        {
+            var canalizacionesEstudiantes = _localData.GetCanalizacionesSolicitudes()
+                .Where(cs => string.Equals(cs.IdTutor, idUsuario, StringComparison.OrdinalIgnoreCase))
+                .Select(cs => cs.IdEstudiante)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            registros = registros.Where(s => canalizacionesEstudiantes.Contains(s.IdEstudiante)).ToList();
+        }
 
         if (estado == "Pendientes")
         {
@@ -81,6 +100,29 @@ public class SeguimientosController : Controller
         return View(vm);
     }
 
+    // GET: /Seguimientos/Details/{id}
+    public IActionResult Details(int id)
+    {
+        var seguimiento = _localData.GetSeguimientos().FirstOrDefault(s => s.Id == id);
+        if (seguimiento is null)
+        {
+            TempData["Error"] = "Registro de seguimiento no encontrado.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var rol = SessionHelper.GetRol(HttpContext.Session);
+        var idUsuario = SessionHelper.GetIdUsuario(HttpContext.Session) ?? string.Empty;
+
+        if (rol == Roles.Estudiante && !string.Equals(seguimiento.IdEstudiante, idUsuario, StringComparison.OrdinalIgnoreCase))
+        {
+            return RedirectToAction("AccessDenied", "Error");
+        }
+
+        ViewBag.PageTitle = "Detalle de Seguimiento";
+        ViewBag.Breadcrumb = new[] { ("Seguimientos", "/Seguimientos"), ("Detalle", "") };
+        return View(seguimiento);
+    }
+
     // GET: /Seguimientos/Create
     [AuthorizeRole(Roles.Psicologo, Roles.Administrador)]
     public IActionResult Create()
@@ -110,12 +152,57 @@ public class SeguimientosController : Controller
         model.FechaRegistro = DateTime.Now;
 
         if (string.IsNullOrEmpty(model.IdPsicologo))
-            model.IdPsicologo = Citas.Psicologicas.Helpers.SessionHelper.GetIdUsuario(HttpContext.Session) ?? string.Empty;
+            model.IdPsicologo = SessionHelper.GetIdUsuario(HttpContext.Session) ?? string.Empty;
         if (string.IsNullOrEmpty(model.NombrePsicologo))
-            model.NombrePsicologo = Citas.Psicologicas.Helpers.SessionHelper.GetNombreCompleto(HttpContext.Session) ?? "Psicóloga";
+            model.NombrePsicologo = SessionHelper.GetNombreCompleto(HttpContext.Session) ?? "Psicóloga";
 
         _localData.AddSeguimiento(model);
         TempData["Success"] = "Seguimiento registrado correctamente.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    // GET: /Seguimientos/Edit/{id}
+    [AuthorizeRole(Roles.Psicologo, Roles.Administrador)]
+    public IActionResult Edit(int id)
+    {
+        var seguimiento = _localData.GetSeguimientos().FirstOrDefault(s => s.Id == id);
+        if (seguimiento is null)
+        {
+            TempData["Error"] = "Registro de seguimiento no encontrado.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        ViewBag.PageTitle = "Editar Seguimiento";
+        ViewBag.Breadcrumb = new[] { ("Seguimientos", "/Seguimientos"), ("Editar", "") };
+        return View(seguimiento);
+    }
+
+    // POST: /Seguimientos/Edit/{id}
+    [HttpPost]
+    [AuthorizeRole(Roles.Psicologo, Roles.Administrador)]
+    [ValidateAntiForgeryToken]
+    public IActionResult Edit(int id, SeguimientoRegistro model)
+    {
+        if (id != model.Id)
+        {
+            TempData["Error"] = "Identificador inconsistente.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (string.IsNullOrWhiteSpace(model.NombreEstudiante))
+        {
+            ModelState.AddModelError(nameof(model.NombreEstudiante), "El nombre del estudiante es obligatorio.");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            ViewBag.PageTitle = "Editar Seguimiento";
+            return View(model);
+        }
+
+        model.Programado = model.FechaProgramada is not null && model.FechaProgramada > DateTime.Now;
+        _localData.UpdateSeguimiento(model);
+        TempData["Success"] = "Seguimiento actualizado correctamente.";
         return RedirectToAction(nameof(Index));
     }
 }
